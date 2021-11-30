@@ -1,0 +1,63 @@
+cmake_minimum_required (VERSION 3.4)
+set (CL_TARGET_OPENCL_VERSION 2.2)
+set (CMAKE_CXX_STANDARD 17)
+project ("XEngine: Framework for heterogeneous Deep Learning with oneDNN")
+
+option (BUILD_TESTS "Build the testing tree." ON)
+
+set (DNNL_ROOT_DIR CACHE PATH "Intel oneDNN (DNNL) directory")
+set (DNNL_INCLUDE_DIR "${DNNL_ROOT_DIR}/include")
+find_library (DNNL_LIBRARY dnnl HINTS "${DNNL_ROOT_DIR}/lib/" "${DNNL_ROOT_DIR}/lib64/")
+
+set (ONEAPI_ROOT_DIR CACHE PATH "Intel oneAPI Base Toolkit directory")
+set (ONEAPI_PREFIX "${ONEAPI_ROOT_DIR}/compiler/latest/linux/")
+set (SYCL_INCLUDE_DIR "${ONEAPI_PREFIX}/include/sycl/")
+find_library (SYCL_LIBRARY sycl HINTS "${ONEAPI_PREFIX}/lib" "${ONEAPI_PREFIX}/lib64")
+
+option(HAS_CBC "Compile xengine with CBC support." OFF)
+if (HAS_CBC)
+  message("Solver: CBC")
+  set (CBC_ROOT_DIR CACHE PATH "CBC ILP-Solver directory")
+  set (CBC_INCLUDE_DIR "${CBC_ROOT_DIR}/include/coin-or")
+  set (CBC_EXAMPLES_DIR "${CBC_ROOT_DIR}/../Cbc/examples")
+  set (CBC_LIB_DIR "${CBC_ROOT_DIR}/lib")
+  find_library (OSI_LIBRARY Osi HINTS "${CBC_LIB_DIR}")
+  find_library (CBC_LIBRARY Cbc HINTS "${CBC_LIB_DIR}")
+  find_library (CGL_LIBRARY Cgl HINTS "${CBC_LIB_DIR}")
+  find_library (CLP_LIBRARY Clp HINTS "${CBC_LIB_DIR}")
+  find_library (OSI_CLP_LIBRARY OsiClp HINTS "${CBC_LIB_DIR}")
+  find_library (COIN_UTILS_LIBRARY CoinUtils HINTS "${CBC_LIB_DIR}")
+  find_library (CBC_SOLVER_LIBRARY CbcSolver HINTS "${CBC_LIB_DIR}")
+  set (CBC_LIBRARIES ${OSI_LIBRARY} ${CBC_LIBRARY} ${CGL_LIBRARY} ${CLP_LIBRARY} ${OSI_CLP_LIBRARY} ${COIN_UTILS_LIBRARY} ${CBC_SOLVER_LIBRARY})
+endif()
+
+option(HAS_GUROBI "Compile xengine with Gurobi support." OFF)
+if (HAS_GUROBI)
+  message("Solver: Gurobi")
+  set (GUROBI_ROOT_DIR CACHE PATH "Gurobi ILP-Solver directory")
+  set (GUROBI_INCLUDE_DIR "${GUROBI_ROOT_DIR}/include")
+  find_library (GUROBI_LIBRARY_CPP gurobi_c++ HINTS "${GUROBI_ROOT_DIR}/lib")
+  find_library (GUROBI_LIBRARY_91 gurobi91 HINTS "${GUROBI_ROOT_DIR}/lib")
+  set (GUROBI_LIBRARIES ${GUROBI_LIBRARY_CPP} ${GUROBI_LIBRARY_91})
+endif()
+
+if (NOT HAS_CBC AND NOT HAS_GUROBI)
+  message(SEND_ERROR "Either HAS_CBC or HAS_GUROBI must be turned ON.")
+endif()
+
+option(protobuf_BUILD_TESTS "" OFF)
+option(protobuf_BUILD_SHARED_LIBS "" ON)
+add_subdirectory(external/Protobuf/cmake)
+
+add_subdirectory(external/ONNX)
+set(ONNX_PROTO_LIBRARY onnx_proto)
+set(ONNX_LIBRARY onnx)
+
+set (WARN_FLAGS "-Wall -Wextra -Wnon-virtual-dtor -Wcast-align -Wunused -Woverloaded-virtual -Wpedantic")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DONNX_ML=1 -DONNX_NAMESPACE=onnx ${WARN_FLAGS}")
+
+find_package(PNG REQUIRED)
+
+add_subdirectory(examples)
+add_subdirectory(src)
+add_subdirectory(test)
