@@ -103,6 +103,45 @@ cd build
 cmake .. -DDNNL_ROOT_DIR=$ONEDNN_HOME -DONEAPI_ROOT_DIR=$ONEAPI_HOME -DHAS_CBC=ON -DCBC_ROOT_DIR=$CBC_HOME -DHAS_GUROBI=ON -DGUROBI_ROOT_DIR=$GUROBI_HOME
 ```
 
+## Get mnist dataset
+```
+cd util/preprocessing
+./getMNISTDataset.sh
+```
+downloads and unzips the mnist train and test dataset into the data/dataset folder.
+
+## Run lenet with xengine
+
+change into your build folder:
+```
+cd build
+```
+
+run lenet with batchsize 64 in inference mode:
+```
+./examples/xengine lenet 64 0 output_folder
+```
+
+run lenet with batchsize 64 in training mode:
+```
+./examples/xengine lenet 64 1 output_folder
+```
+
+To run xengine with a higher batchsize:
+```
+cd util/preprocessing
+./createONNXModel.py -m ../../data/models/lenet_bs64.onnx -b 256 -o ../../data/models/lenet_bs256.onnx
+```
+to create a new ONNX model with batchsize 256 based on the input model.
+Make sure to put the new model into the data/models folder und to keep the pattern: modelname_bsXX.onnx
+
+Then, you can run it with:
+```
+cd ../../build
+./examples/xengine lenet 256 0 output_folder
+./examples/xengine lenet 256 1 output_folder
+```
+
 ## Run the simple "cross engine reorder" (taken from oneDNN examples):
 
 To run it with an Intel GPU:
