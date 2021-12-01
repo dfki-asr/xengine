@@ -1,4 +1,4 @@
-"""ONNX helpers for HPDLF
+"""ONNX helpers
 ====================================
 
 Provides convenience methods for working with ONNX models.

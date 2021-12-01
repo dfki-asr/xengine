@@ -4,7 +4,7 @@ import argparse
 import onnx
 from onnx import helper, checker, TensorProto
 import numpy as np
-from hpdlf_onnx import Model
+from onnxhelper import Model
 
 
 def setNodeNames(model):
