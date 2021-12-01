@@ -12,6 +12,7 @@ class TensorInfo:
     doc_string      -- Optional documentation
     shapeDenotation -- Array containing the description of each shape index
     """
+
     def __init__(self,
                  name,
                  elemType,

@@ -18,6 +18,7 @@ class ListDecorator(MutableSequence, NonCopyable):
 
     Subclasses need to implement _fromOnnx, _toOnnx
     """
+
     def __init__(self, onnxList):
         """Create an instance
 
@@ -68,6 +69,7 @@ class DictDecorator(MutableMapping, NonCopyable):
 
     Subclasses need to implement _getKey, _fromOnnx, _toOnnx
     """
+
     def __init__(self, onnxList):
         """Create an instance
 
@@ -173,6 +175,7 @@ class StringStringDict(CachedDictDecorator):
     See https://developers.google.com/protocol-buffers/docs/proto3#maps
     Entries are of type StringStringEntryProto (key, value as members)
     """
+
     def _getKey(self, value):
         return value.key
 

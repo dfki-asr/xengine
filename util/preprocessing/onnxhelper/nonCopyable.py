@@ -5,6 +5,7 @@ class NonCopyable:  # pylint: disable=too-few-public-methods
     Reason is that this reference is inside the model and copying the object would decouple it
     from the model.
     """
+
     def __deepcopy__(self, memo):
         raise RuntimeError(
             "Cannot deepcopy {}. Use deepcopy on the Model instance instead".

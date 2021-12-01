@@ -6,6 +6,7 @@ from .nonCopyable import NonCopyable
 
 class TensorListDecorator(ListDecorator):
     """Wrap a list of tensor names to their tensor info or name if no tensor info is found"""
+
     def __init__(self, onnxList, model):
         self._model = model
         super().__init__(onnxList)
@@ -42,6 +43,7 @@ class AttributesWrapper(CachedDictDecorator):
 
     Important: Ignores doc_strings (deleted on write)
     """
+
     def _getKey(self, value):
         return value.name
 
@@ -61,6 +63,7 @@ class AttributesWrapper(CachedDictDecorator):
 
 class Node(NonCopyable):
     """Wrapper around an ONNX node (operation)"""
+
     def __init__(self, onnxNode, model):
         self._onnxNode = onnxNode
         self._model = model

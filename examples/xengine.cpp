@@ -121,7 +121,8 @@ int run(const string name, const int batchsize, const int training,
 
 int main(const int argc, const char **argv) {
   if (argc < 5) {
-    cout << "usage: ./examples/xengine NETWORK (lenet|vgg16|resnet18|resnet50) "
+    cout << "usage: ./examples/xengine NETWORK "
+            "(lenet|vgg16|resnet18|resnet50) "
             "BATCHSIZE "
             "MODE (0=test|1=train) "
             "OUTPUT_DIRECTORY (use '.' for default directory) "

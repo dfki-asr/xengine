@@ -11,6 +11,7 @@ from .nonCopyable import NonCopyable
 
 class ValueInfosWrapper(CachedDictDecorator):
     """Wrapper around ONNX ValueInfo repeated struct with dictionary like access"""
+
     def _getKey(self, value):
         return value.name
 
@@ -28,6 +29,7 @@ class ValueInfosWrapper(CachedDictDecorator):
 
 class NodesWrapper(ListDecorator):
     """Wrapper around ONNX nodes"""
+
     def __init__(self, onnxList, model):
         self.model = model
         super().__init__(onnxList)
@@ -41,6 +43,7 @@ class NodesWrapper(ListDecorator):
 
 class TensorWrapper(DictDecorator):
     """Wrapper around ONNX tensors (initializers)"""
+
     def _getKey(self, value):
         return value.name
 
@@ -57,6 +60,7 @@ class TensorWrapper(DictDecorator):
 
 class Graph(NonCopyable):
     """Wrapper around an ONNX graph in a model"""
+
     def __init__(self, onnxGraph, model):
         self._onnxGraph = onnxGraph
         self._model = model

@@ -7,6 +7,7 @@ from .utils import wrapOnnxProperties
 
 
 class OpsetDict(CachedDictDecorator):
+
     def _getKey(self, value):
         return value.domain
 
@@ -29,6 +30,7 @@ class Model:
     An ONNX model is checked for correctness on construction.
     You should rerun this check after modifications with `validate`.
     """
+
     def __init__(self, onnxModel):
         self._model = None
         self._validate(onnxModel)

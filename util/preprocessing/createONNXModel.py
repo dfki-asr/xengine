@@ -9,6 +9,7 @@ from onnxhelper import Model
 
 def setNodeNames(model):
     """ Create names for all nodes in graph if not already there """
+
     def count_number_of_nodes_of_type(graph, op_type, idx=-1):
         return sum(op_type == n.op_type for n in graph.nodes[0:idx])
 
