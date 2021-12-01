@@ -1,11 +1,11 @@
+[submodule "external/ONNX"]
+	path = external/ONNX
+	url = https://github.com/onnx/onnx.git
+	branch = rel-1.8.1
 [submodule "external/yapf"]
 	path = external/yapf
 	url = https://github.com/google/yapf.git
 [submodule "external/Protobuf"]
 	path = external/Protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
-	branch = v3.14.0
-[submodule "external/ONNX"]
-	path = external/ONNX
-	url = https://github.com/onnx/onnx.git
-	branch = rel-1.8.1
+	branch = 3.14.x
