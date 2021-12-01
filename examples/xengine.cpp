@@ -1,4 +1,5 @@
 #include "../src/core/network.cpp"
+#include <filesystem>
 
 using namespace std;
 
@@ -24,6 +25,12 @@ void execute_network(const string &model_name, const string &images,
     cout << "ILP optimizer ..." << endl;
   }
   const string mode = training ? "training" : "inference";
+  if (!filesystem::exists(output_dir)) {
+    filesystem::create_directory(output_dir);
+  }
+  if (!filesystem::is_directory(output_dir)) {
+    throw runtime_error(output_dir + " is NO directory!");
+  }
   const string output_filename = output_dir + "/" + model_name + "_" + mode;
   const string mpsfile = output_filename + ".mps";
   const string logfile = output_filename + ".log";
