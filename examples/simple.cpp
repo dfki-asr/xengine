@@ -91,7 +91,7 @@ void execute(map<string, shared_ptr<Device>> &devices,
 int main() {
   auto begin = get_time();
   auto devices = map<string, shared_ptr<Device>>();
-  create_devices(devices, "../data/models/devices.txt");
+  create_devices(devices, "../data/devices/devices_auto.txt");
   std::cout << "Device creation time: " << (get_elapsed_ms(begin)) << " ms."
             << std::endl;
 
