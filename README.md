@@ -2,7 +2,7 @@
 
 Clone the repository:
 ```
-git clone https://github.com/ManuelaSchuler/xengine.git --recurse-submodules
+git clone git@github.com:ManuelaSchuler/xengine.git --recurse-submodules
 ```
 
 ## Prerequisites and dependencies:
