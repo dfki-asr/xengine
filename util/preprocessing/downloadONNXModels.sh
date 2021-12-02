@@ -10,10 +10,11 @@ models[vgg19-7]=vgg/model/vgg19-7.onnx
 models[resnet18-v1-7]=resnet/model/resnet18-v1-7.onnx
 models[resnet50-v1-7]=resnet/model/resnet50-v1-7.onnx
 models[resnet34-v1-7]=resnet/model/resnet34-v1-7.onnx
+models[googlenet-7]=inception_and_googlenet/googlenet/model/googlenet-7.onnx
 
 SELF_DIR="$( cd "$(dirname "$0")" ; pwd -P )"
 
-networks=("vgg16-7" "vgg19-7" "resnet18-v1-7" "resnet50-v1-7" "resnet34-v1-7")
+networks=("vgg16-7" "vgg19-7" "resnet18-v1-7" "resnet50-v1-7" "resnet34-v1-7" "googlenet-7")
 default_bs=1
 
 for net in ${networks[@]}; do

@@ -87,6 +87,21 @@ void resnet(const string version, const int batchsize, const int training,
                   output_dir);
 }
 
+void googlenet(const int batchsize, const int training, const string devices,
+               const string output_dir) {
+  string model_name, images, labels, schedule_file;
+  model_name = "googlenet-7_bs" + to_string(batchsize);
+  images = "../data/datasets/imagenet_test/images-idx4-ubyte";
+  labels = "../data/datasets/imagenet_test/labels-idx1-short";
+  if (training) {
+    schedule_file = "../data/schedules/googlenet_train_schedule.txt";
+  } else {
+    schedule_file = "../data/schedules/googlenet_inf_schedule.txt";
+  }
+  execute_network(model_name, images, labels, schedule_file, devices, training,
+                  output_dir);
+}
+
 void unet(const int batchsize, const int training, const string devices,
           const string output_dir) {
   string model_name, images, labels, schedule_file;
@@ -116,6 +131,8 @@ int run(const string name, const int batchsize, const int training,
     resnet("50", batchsize, training, devices, output_dir);
   } else if (name.compare("resnet34") == 0) {
     resnet("34", batchsize, training, devices, output_dir);
+  } else if (name.compare("googlenet") == 0) {
+    googlenet(batchsize, training, devices, output_dir);
   } else if (name.compare("unet") == 0) {
     unet(batchsize, training, devices, output_dir);
   } else {
@@ -128,7 +145,7 @@ int run(const string name, const int batchsize, const int training,
 int main(const int argc, const char **argv) {
   if (argc < 5) {
     cout << "usage: ./examples/xengine NETWORK "
-            "(lenet|vgg16|vgg19|resnet18|resnet34|resnet50|unet) "
+            "(lenet|vgg16|vgg19|resnet18|resnet34|resnet50|unet|googlenet) "
             "BATCHSIZE "
             "MODE (0=test|1=train) "
             "OUTPUT_DIRECTORY (use '.' for default directory) "
