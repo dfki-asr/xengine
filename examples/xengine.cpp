@@ -55,16 +55,16 @@ void lenet(const int batchsize, const int training, const string devices,
                   output_dir);
 }
 
-void vgg16(const int batchsize, const int training, const string devices,
-           const string output_dir) {
+void vgg(const string version, const int batchsize, const int training,
+         const string devices, const string output_dir) {
   string model_name, images, labels, schedule_file;
-  model_name = "vgg16-7_bs" + to_string(batchsize);
+  model_name = "vgg" + version + "-7_bs" + to_string(batchsize);
   images = "../data/datasets/imagenet_test/images-idx4-ubyte";
   labels = "../data/datasets/imagenet_test/labels-idx1-short";
   if (training) {
-    schedule_file = "../data/schedules/vgg16-7_train_schedule.txt";
+    schedule_file = "../data/schedules/vgg" + version + "-7_train_schedule.txt";
   } else {
-    schedule_file = "../data/schedules/vgg16-7_inf_schedule.txt";
+    schedule_file = "../data/schedules/vgg" + version + "-7_inf_schedule.txt";
   }
   execute_network(model_name, images, labels, schedule_file, devices, training,
                   output_dir);
@@ -107,11 +107,15 @@ int run(const string name, const int batchsize, const int training,
   if (name.compare("lenet") == 0) {
     lenet(batchsize, training, devices, output_dir);
   } else if (name.compare("vgg16") == 0) {
-    vgg16(batchsize, training, devices, output_dir);
+    vgg("16", batchsize, training, devices, output_dir);
+  } else if (name.compare("vgg19") == 0) {
+    vgg("19", batchsize, training, devices, output_dir);
   } else if (name.compare("resnet18") == 0) {
     resnet("18", batchsize, training, devices, output_dir);
   } else if (name.compare("resnet50") == 0) {
     resnet("50", batchsize, training, devices, output_dir);
+  } else if (name.compare("resnet34") == 0) {
+    resnet("34", batchsize, training, devices, output_dir);
   } else if (name.compare("unet") == 0) {
     unet(batchsize, training, devices, output_dir);
   } else {
@@ -124,7 +128,7 @@ int run(const string name, const int batchsize, const int training,
 int main(const int argc, const char **argv) {
   if (argc < 5) {
     cout << "usage: ./examples/xengine NETWORK "
-            "(lenet|vgg16|resnet18|resnet50) "
+            "(lenet|vgg16|vgg19|resnet18|resnet34|resnet50|unet) "
             "BATCHSIZE "
             "MODE (0=test|1=train) "
             "OUTPUT_DIRECTORY (use '.' for default directory) "
