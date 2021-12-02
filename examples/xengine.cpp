@@ -77,9 +77,11 @@ void resnet(const string version, const int batchsize, const int training,
   images = "../data/datasets/imagenet_test/images-idx4-ubyte";
   labels = "../data/datasets/imagenet_test/labels-idx1-short";
   if (training) {
-    schedule_file = "../data/schedules/resnet50-v1-7_train_schedule.txt";
+    schedule_file =
+        "../data/schedules/resnet" + version + "-v1-7_train_schedule.txt";
   } else {
-    schedule_file = "../data/schedules/resnet50-v1-7_inf_schedule.txt";
+    schedule_file =
+        "../data/schedules/resnet" + version + "-v1-7_inf_schedule.txt";
   }
   execute_network(model_name, images, labels, schedule_file, devices, training,
                   output_dir);
