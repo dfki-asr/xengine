@@ -13,12 +13,13 @@ models[resnet34-v1-7]=resnet/model/resnet34-v1-7.onnx
 models[googlenet-7]=inception_and_googlenet/googlenet/model/googlenet-7.onnx
 
 SELF_DIR="$( cd "$(dirname "$0")" ; pwd -P )"
+UTIL_FOLDER="${SELF_DIR}/../../util/preprocessing"
+TARGET_FOLDER="${SELF_DIR}/../../data/models"
 
 networks=("vgg16-7" "vgg19-7" "resnet18-v1-7" "resnet50-v1-7" "resnet34-v1-7" "googlenet-7")
 default_bs=1
 
 for net in ${networks[@]}; do
-   TARGET_FOLDER="${SELF_DIR}/../../data/models"
    cd "${TARGET_FOLDER}"
    URL="${base_url}/${models[${net}]}"
    bs=${default_bs}
@@ -29,5 +30,7 @@ for net in ${networks[@]}; do
       wget --no-check-certificate "${URL}"
       echo "save ${net} as ${TARGET_FOLDER}/${net}_bs${bs}.onnx"
       mv "${TARGET_FOLDER}/${net}.onnx" "${TARGET_FOLDER}/${net}_bs${bs}.onnx"
+      cd "${UTIL_FOLDER}"
+      ./createONNXModel.py -m "${TARGET_FOLDER}/${net}_bs${bs}.onnx" -o "${TARGET_FOLDER}/${net}_bs${bs}.onnx"
    fi
 done
