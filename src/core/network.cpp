@@ -790,6 +790,9 @@ void Network::_initOperators(unordered_map<string, vector<string>> &inputs,
                              unordered_map<string, vector<string>> &outputs) {
   for (const auto &node : _model.graph().node()) {
     const auto name = node.name();
+    if (name.empty()) {
+      throw runtime_error("operator without name encountered!");
+    }
     const auto type = node.op_type();
     const auto input = inputs[name];
     const auto output = outputs[name];
