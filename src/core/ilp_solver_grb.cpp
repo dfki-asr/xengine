@@ -278,6 +278,19 @@ int ILP_Solver_GRB::solve() {
     const size_t E = _edges.size();
     const size_t D = _devices.size();
 
+    // get times for run on 1 device only
+    cout << "******************************************" << endl;
+    GRBLinExpr obj = model.getObjective().getLinExpr();
+    for (d = 0; d < D; ++d) {
+      double device_time = 0;
+      for (i = 0; i < T; ++i) {
+        const size_t idx = (d * T * T) + (i * T) + i;
+        device_time += obj.getCoeff(idx);
+      }
+      cout << "time on device " << d << ": " << device_time << " ms." << endl;
+    }
+    cout << "*****************" << endl;
+
     // get solution(s)
     if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL) {
       size_t nSolutionsTotal = model.get(GRB_IntAttr_SolCount);
@@ -285,6 +298,8 @@ int ILP_Solver_GRB::solve() {
       for (s = 0; s < nSolutions; ++s) {
         model.set(GRB_IntParam_SolutionNumber, s);
         _objective_value = model.get(GRB_DoubleAttr_ObjVal);
+        cout << "ILP schedule:     " << _objective_value << " ms." << endl;
+        cout << "******************************************" << endl;
         double min_mem = 1e12;
         double max_mem = 0;
         for (d = 0; d < D; ++d) {
