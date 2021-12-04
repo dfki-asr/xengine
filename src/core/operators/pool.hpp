@@ -141,9 +141,6 @@ public:
     auto time_exe = get_time();
     _fwd_context->pool_fwd->execute(s, args);
     s.wait();
-    if (training) {
-      auto ws_name = _f_op.output.at(1);
-    }
     if (measure_time) {
       timings[time_name]["exe"] = get_elapsed_ms(time_exe);
       timings[time_name]["total"] = get_elapsed_ms(begin);
