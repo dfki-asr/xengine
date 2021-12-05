@@ -910,7 +910,9 @@ void Network::_fillModelParameters() {
   const auto initializers = _model.graph().initializer();
   for (const auto &onnx_info : initializers) {
     if (onnx_info.data_type() != 1) {
-      throw runtime_error("Unsupported ONNX data type!");
+      cout << onnx_info.name() << " has unsupported data type "
+           << onnx_info.data_type() << "!" << endl;
+      continue;
     };
     const auto name = onnx_info.name();
     const auto dims = _tensors[name]->dims();
