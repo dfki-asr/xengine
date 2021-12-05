@@ -713,7 +713,8 @@ void Network::_preprocessModel(unordered_map<string, vector<string>> &inputs,
   for (auto i = 0; i < nodes.size(); i++) {
     const auto type = nodes.at(i).op_type();
     replace_info[nodes.at(i).name()] =
-        (type == "Flatten" || (type == "Dropout" && _training == false));
+        (type == "Flatten" || type == "Reshape" ||
+         (type == "Dropout" && _training == false));
   }
   for (auto i = 1; i < nodes.size() - 1; i++) {
     const auto type = nodes.at(i).op_type();
@@ -803,7 +804,8 @@ void Network::_initOperators(unordered_map<string, vector<string>> &inputs,
     unordered_map<string, int> int_parameters;
     get_params_from_proto(node, dim_parameters, float_parameters,
                           int_parameters);
-    if (type == "Flatten" || (type == "Dropout" && _training == false))
+    if (type == "Flatten" || type == "Reshape" ||
+        (type == "Dropout" && _training == false))
       continue;
     if (type == "Conv") {
       _operators.push_back(
