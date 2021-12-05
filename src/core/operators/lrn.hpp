@@ -74,6 +74,10 @@ public:
     _fwd_context = nullptr;
     _bwd_context = nullptr;
     init(tensors);
+    if (training) {
+      auto ws_name = _f_op.output.at(1);
+      tensors[ws_name]->add_consumer(_b_op.name);
+    }
   }
   ~LRN() {
     reset_fwd_primitives();

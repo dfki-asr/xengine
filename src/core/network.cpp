@@ -769,7 +769,8 @@ void Network::_preprocessModel(unordered_map<string, vector<string>> &inputs,
     for (const auto &node : nodes) {
       const auto name = node.name();
       const auto type = node.op_type();
-      if (type.find("Pool") != string::npos) {
+      if (type.find("Pool") != string::npos ||
+          type.find("LRN") != string::npos) {
         auto output_name = outputs[name].at(0);
         auto ws_name = output_name + "_ws";
         _tensors[ws_name] =
