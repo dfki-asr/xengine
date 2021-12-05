@@ -43,8 +43,27 @@ float maybe_do_reorder(memory &src, memory &dst, stream &dst_stream,
   }
   auto begin = get_time();
   float time_in_ms = 0;
-  reorder(src, dst).execute(s, {{DNNL_ARG_FROM, src}, {DNNL_ARG_TO, dst}});
-  s.wait();
+  if (src.get_desc().dims().size() != dst.get_desc().dims().size()) {
+    auto src_dims = src.get_desc().dims();
+    auto dst_dims = dst.get_desc().dims();
+    if (src_dims.size() > dst_dims.size()) {
+      memory::dims flat_dims = {src_dims.begin(),
+                                src_dims.begin() + dst_dims.size()};
+      auto flat_desc =
+          memory::desc(flat_dims, g_data_type, memory::format_tag::nc);
+      memory flat_src = make_memory(flat_desc, src.get_engine());
+      // copy data from src to flat_src
+      read_from_dnnl_memory(src.get_data_handle(), flat_src);
+      reorder(flat_src, dst)
+          .execute(s, {{DNNL_ARG_FROM, flat_src}, {DNNL_ARG_TO, dst}});
+      s.wait();
+    } else {
+      throw runtime_error("Cannot reorder lower dims to higher dims!");
+    }
+  } else {
+    reorder(src, dst).execute(s, {{DNNL_ARG_FROM, src}, {DNNL_ARG_TO, dst}});
+    s.wait();
+  }
   if (measure_time) {
     time_in_ms = get_elapsed_ms(begin);
   }
