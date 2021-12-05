@@ -875,6 +875,29 @@ void Network::_initOperators(unordered_map<string, vector<string>> &inputs,
       int axis = int_parameters["axis"];
       _operators.push_back(move(
           make_unique<Concat>(name, input, output, axis, _tensors, _training)));
+    } else if (type == "Softmax") {
+      const auto input_tensor = input[0];
+      const auto out_name = output[0];
+      _tensors[out_name] =
+          move(make_unique<Tensor>(out_name, _tensors[input_tensor]->dims()));
+      _tensors[out_name]->producer = name;
+      auto labels_name = "labels";
+      _tensors[labels_name]->add_consumer("fwd_" + name);
+      auto loss_name = "loss";
+      _tensors[loss_name] =
+          move(make_unique<Tensor>(loss_name, _tensors[labels_name]->dims()));
+      _tensors[loss_name]->producer = name;
+      _tensors[loss_name]->add_consumer("external");
+      if (_training) {
+        auto out_diff_name = "diff_" + input_tensor;
+        _tensors[out_diff_name] = move(
+            make_unique<Tensor>(out_diff_name, _tensors[input_tensor]->dims()));
+        _tensors[out_diff_name]->producer = name;
+      }
+      const int axis = _tensors[input_tensor]->dims().size() - 1;
+      _operators.push_back(move(make_unique<SoftmaxWithLoss>(
+          name, vector<string>({input_tensor, labels_name}),
+          vector<string>({out_name, loss_name}), axis, _tensors, _training)));
     } else {
       throw runtime_error("unsupported operator type: " + type);
     }
