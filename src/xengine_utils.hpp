@@ -53,7 +53,8 @@ inline std::vector<dnnl::memory::dim> get_output_dims(
   for (size_t i = 0; i < kernel.size(); ++i) {
     auto const input_value = dims.at(i + offset);
     auto const value = static_cast<dnnl::memory::dim>(
-        ((input_value - kernel.at(i) + 2 * padding.at(i)) /
+        ((input_value - kernel.at(i) + padding.at(i) +
+          padding.at(i + kernel.size())) /
          static_cast<float>(stride.at(i))) +
         1);
     output_dims.push_back(value);
