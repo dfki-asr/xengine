@@ -97,6 +97,9 @@ public:
     auto b_md = has_bias() ? getDesc({w_dims.at(0)}, memory::format_tag::x)
                            : memory::desc();
     auto dst_dims = memory::dims({src_dims.at(0), w_dims.at(0)});
+    if (src_dims.size() > w_dims.size()) {
+      src_dims = {src_dims.begin(), src_dims.begin() + w_dims.size()};
+    }
     auto time_name = getForwardTimeName(eng);
     auto s = stream(eng);
     if (_fwd_context == nullptr) {
