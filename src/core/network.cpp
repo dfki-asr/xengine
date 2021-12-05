@@ -581,7 +581,9 @@ void Network::_Xpass(const int is_fwd_pass) {
     }
     if (_verbose > 1) {
       cout << "compute " << to_string(schedID) << " "
-           << _operators.at(opID)->name << " " << mode << endl;
+           << _operators.at(opID)->name << " (" << _operators.at(opID)->type
+           << ")"
+           << " " << mode << endl;
     }
     // Release
     if (schedID > _opsToKeep) {
