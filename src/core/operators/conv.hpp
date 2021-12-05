@@ -77,7 +77,8 @@ public:
       : Operator_With_Weights(n, "Conv", i, o, tensors, training) {
     stride = s;
     kernel = k;
-    padding = p;
+    padding_l = {p.begin(), p.begin() + k.size()};
+    padding_r = {p.begin() + k.size(), p.end()};
     algo = algorithm::convolution_direct;
     _fwd_context = nullptr;
     _bwd_context = nullptr;
@@ -101,8 +102,8 @@ public:
     auto w_dims = tensors[w_name]->dims();
     auto b_md = has_bias() ? getDesc({w_dims.at(0)}, memory::format_tag::x)
                            : memory::desc();
-    auto dst_dims =
-        get_output_dims(src_dims, w_dims.at(0), kernel, stride, padding);
+    auto dst_dims = get_output_dims(src_dims, w_dims.at(0), kernel, stride,
+                                    padding_l, padding_r);
     auto time_name = getForwardTimeName(eng);
     auto s = stream(eng);
     if (_fwd_context == nullptr) {
@@ -110,7 +111,7 @@ public:
       _fwd_context.reset(new ConvFwdContext());
       _fwd_context->fwd_desc.reset(new convolution_forward::desc(
           {getMode(training), algo, getDesc(src_dims), getDesc(w_dims), b_md,
-           getDesc(dst_dims, outputTag), stride, padding, padding}));
+           getDesc(dst_dims, outputTag), stride, padding_l, padding_r}));
       _fwd_context->fwd_pd.reset(new convolution_forward::primitive_desc(
           *_fwd_context->fwd_desc, eng));
       _fwd_context->conv_fwd.reset(
@@ -171,8 +172,8 @@ public:
     auto w_md = getDesc(w_dims);
     auto b_md = has_bias() ? getDesc({w_dims.at(0)}, memory::format_tag::x)
                            : memory::desc();
-    auto dst_dims =
-        get_output_dims(src_dims, w_dims.at(0), kernel, stride, padding);
+    auto dst_dims = get_output_dims(src_dims, w_dims.at(0), kernel, stride,
+                                    padding_l, padding_r);
     auto dst_md = getDesc(dst_dims, outputTag);
     auto time_name = getBackwardTimeName(eng);
     auto s = stream(eng);
@@ -180,7 +181,7 @@ public:
       auto time_create = get_time();
       _bwd_context.reset(new ConvBwdContext());
       _bwd_context->bwd_w_desc.reset(new convolution_backward_weights::desc(
-          {algo, src_md, w_md, b_md, dst_md, stride, padding, padding}));
+          {algo, src_md, w_md, b_md, dst_md, stride, padding_l, padding_r}));
       int reuse_fwd_pd = 0;
       if (_fwd_context != nullptr) {
         reuse_fwd_pd = _fwd_context->fwd_pd->get_engine() == eng ? 1 : 0;
@@ -189,13 +190,13 @@ public:
                         ? *_fwd_context->fwd_pd
                         : convolution_forward::primitive_desc(
                               {prop_kind::forward_training, algo, src_md, w_md,
-                               b_md, dst_md, stride, padding, padding},
+                               b_md, dst_md, stride, padding_l, padding_r},
                               eng);
       _bwd_context->bwd_w_pd.reset(
           new convolution_backward_weights::primitive_desc(
               *_bwd_context->bwd_w_desc, eng, fwd_pd));
       _bwd_context->bwd_d_desc.reset(new convolution_backward_data::desc(
-          {algo, src_md, w_md, dst_md, stride, padding, padding}));
+          {algo, src_md, w_md, dst_md, stride, padding_l, padding_r}));
       _bwd_context->bwd_d_pd.reset(
           new convolution_backward_data::primitive_desc(
               *_bwd_context->bwd_d_desc, eng, fwd_pd));
@@ -274,7 +275,7 @@ public:
   }
   memory::dims stride;
   memory::dims kernel;
-  memory::dims padding;
+  memory::dims padding_l, padding_r;
   algorithm algo;
   shared_ptr<ConvFwdContext> _fwd_context;
   shared_ptr<ConvBwdContext> _bwd_context;

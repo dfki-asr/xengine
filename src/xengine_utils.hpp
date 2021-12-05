@@ -43,7 +43,7 @@ inline uint8_t _rand_uint8_t() {
 inline std::vector<dnnl::memory::dim> get_output_dims(
     const dnnl::memory::dims &dims, const dnnl::memory::dim &channels,
     const dnnl::memory::dims &kernel, const dnnl::memory::dims &stride,
-    const dnnl::memory::dims &padding) {
+    const dnnl::memory::dims &padding_l, const dnnl::memory::dims &padding_r) {
   std::vector<dnnl::memory::dim> output_dims;
   output_dims.reserve(dims.size());
   auto batch_size = dims.at(0);
@@ -53,8 +53,7 @@ inline std::vector<dnnl::memory::dim> get_output_dims(
   for (size_t i = 0; i < kernel.size(); ++i) {
     auto const input_value = dims.at(i + offset);
     auto const value = static_cast<dnnl::memory::dim>(
-        ((input_value - kernel.at(i) + padding.at(i) +
-          padding.at(i + kernel.size())) /
+        ((input_value - kernel.at(i) + padding_l.at(i) + padding_r.at(i)) /
          static_cast<float>(stride.at(i))) +
         1);
     output_dims.push_back(value);

@@ -55,7 +55,8 @@ public:
       : Operator(n, t, i, o, tensors, training) {
     stride = s;
     kernel = k;
-    padding = p;
+    padding_l = {p.begin(), p.begin() + k.size()};
+    padding_r = {p.begin() + k.size(), p.end()};
     if (type == "MaxPool") {
       algo = algorithm::pooling_max;
     } else if (type == "AveragePool") {
@@ -94,15 +95,15 @@ public:
     auto out_name = _f_op.output.at(0);
     auto src_dims = tensors[src_name]->dims();
     auto src_md = tensors[src_name]->desc();
-    auto dst_dims =
-        get_output_dims(src_dims, src_dims.at(1), kernel, stride, padding);
+    auto dst_dims = get_output_dims(src_dims, src_dims.at(1), kernel, stride,
+                                    padding_l, padding_r);
     auto time_name = getForwardTimeName(eng);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       _fwd_context.reset(new PoolFwdContext());
       _fwd_context->fwd_desc.reset(new pooling_forward::desc(
           {getMode(training), algo, src_md, getDesc(dst_dims, outputTag),
-           stride, kernel, padding, padding}));
+           stride, kernel, padding_l, padding_r}));
       _fwd_context->fwd_pd.reset(
           new pooling_forward::primitive_desc(*_fwd_context->fwd_desc, eng));
       _fwd_context->pool_fwd.reset(new pooling_forward(*_fwd_context->fwd_pd));
@@ -162,7 +163,7 @@ public:
       auto time_create = get_time();
       _bwd_context.reset(new PoolBwdContext());
       _bwd_context->bwd_desc.reset(new pooling_backward::desc(
-          {algo, src_md, dst_md, stride, kernel, padding, padding}));
+          {algo, src_md, dst_md, stride, kernel, padding_l, padding_r}));
       int reuse_fwd_pd = 0;
       if (_fwd_context != nullptr) {
         reuse_fwd_pd = _fwd_context->fwd_pd->get_engine() == eng ? 1 : 0;
@@ -171,7 +172,7 @@ public:
                         ? *_fwd_context->fwd_pd
                         : pooling_forward::primitive_desc(
                               {prop_kind::forward_training, algo, src_md,
-                               dst_md, stride, kernel, padding, padding},
+                               dst_md, stride, kernel, padding_l, padding_r},
                               eng);
       _bwd_context->bwd_pd.reset(new pooling_backward::primitive_desc(
           *_bwd_context->bwd_desc, eng, fwd_pd));
@@ -208,7 +209,7 @@ public:
   }
   memory::dims stride;
   memory::dims kernel;
-  memory::dims padding;
+  memory::dims padding_l, padding_r;
   algorithm algo;
   shared_ptr<PoolFwdContext> _fwd_context;
   shared_ptr<PoolBwdContext> _bwd_context;

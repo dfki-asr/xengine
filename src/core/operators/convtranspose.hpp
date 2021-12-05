@@ -43,7 +43,8 @@ public:
       : Operator_With_Weights(n, "ConvTranspose", i, o, tensors, training) {
     stride = s;
     kernel = k;
-    padding = p;
+    padding_l = {p.begin(), p.begin() + k.size()};
+    padding_r = {p.begin() + k.size(), p.end()};
     algo = algorithm::convolution_auto;
     _fwd_context = nullptr;
     init(tensors);
@@ -68,11 +69,11 @@ public:
       _fwd_context.reset(new ConvTFwdContext());
       _fwd_context->fwd_f_desc.reset(new convolution_forward::desc(
           {prop_kind::forward_inference, algo, dst_md, w_md, src_md, stride,
-           padding, padding}));
+           padding_l, padding_r}));
       _fwd_context->fwd_f_pd.reset(new convolution_forward::primitive_desc(
           *_fwd_context->fwd_f_desc, eng));
       _fwd_context->fwd_b_desc.reset(new convolution_backward_data::desc(
-          {algo, dst_md, w_md, src_md, stride, padding, padding}));
+          {algo, dst_md, w_md, src_md, stride, padding_l, padding_r}));
       _fwd_context->fwd_b_pd.reset(
           new convolution_backward_data::primitive_desc(
               *_fwd_context->fwd_b_desc, eng, *_fwd_context->fwd_f_pd));
@@ -121,7 +122,7 @@ public:
 
   memory::dims stride;
   memory::dims kernel;
-  memory::dims padding;
+  memory::dims padding_l, padding_r;
   algorithm algo;
   shared_ptr<ConvTFwdContext> _fwd_context;
 };
