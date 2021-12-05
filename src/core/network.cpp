@@ -732,19 +732,19 @@ void Network::_preprocessModel(unordered_map<string, vector<string>> &inputs,
       next = nodes.at(i + increase).name();
       increase += 1;
     } while (replace_info[next] == true);
-    auto org_prev_output = outputs[prev].at(0);
-    if (inputs[next].size() > 1) {
-      auto w_name = inputs[next].at(1);
+    auto const old_outputs = outputs[prev];
+    auto const old_inputs = inputs[next];
+    if (old_inputs.size() > 1) {
+      auto w_name = old_inputs.at(1);
       auto w_dims = _tensors[w_name]->dims();
+      auto org_prev_output = old_outputs.at(0);
       auto d_dims = _tensors[org_prev_output]->dims();
-      auto new_dims = vector<memory::dim>();
-      new_dims.push_back(w_dims.at(0));
+      auto new_dims = vector<memory::dim>({w_dims.at(0)});
       for (size_t j = 1; j < d_dims.size(); j++)
         new_dims.push_back(d_dims.at(j));
       _tensors[w_name]->set_dims(memory::dims(new_dims));
     }
-    outputs[prev].at(0) = inputs[next].at(0);
-    inputs[next].at(0) = outputs[prev].at(0);
+    inputs[next].at(0) = old_outputs.at(0);
     const auto name = nodes.at(i).name();
     inputs[name] = vector<string>();
     outputs[name] = vector<string>();
@@ -755,6 +755,11 @@ void Network::_preprocessModel(unordered_map<string, vector<string>> &inputs,
     const auto name = node.name();
     const auto input = inputs[name];
     const auto output = outputs[name];
+    if (node.op_type() == "Dropout" && _training == true && output.size() > 1) {
+      auto mask_name = output[1];
+      _tensors[mask_name] =
+          move(make_unique<Tensor>(mask_name, _tensors[output[0]]->dims()));
+    }
     for (auto tensor : output)
       _tensors[tensor]->producer = fwd_prefix + name;
     for (auto tensor : input)
