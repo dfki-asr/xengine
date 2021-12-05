@@ -9,6 +9,7 @@
 #include "operators/globalavgpool.hpp"
 #include "operators/instancenormalization.hpp"
 #include "operators/leakyrelu.hpp"
+#include "operators/lrn.hpp"
 #include "operators/maxpool.hpp"
 #include "operators/relu.hpp"
 #include "operators/softmax_with_loss.hpp"

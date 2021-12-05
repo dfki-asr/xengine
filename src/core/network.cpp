@@ -842,6 +842,13 @@ void Network::_initOperators(unordered_map<string, vector<string>> &inputs,
       float probability = float_parameters["ratio"];
       _operators.push_back(move(make_unique<Dropout>(
           name, input, output, probability, _tensors, _training)));
+    } else if (type == "LRN") {
+      float alpha = float_parameters["alpha"];
+      float beta = float_parameters["beta"];
+      float bias = float_parameters["bias"];
+      int size = int_parameters["size"];
+      _operators.push_back(move(make_unique<LRN>(
+          name, input, output, alpha, beta, bias, size, _tensors, _training)));
     } else if (type == "BatchNormalization") {
       float epsilon = float_parameters["epsilon"];
       float momentum = float_parameters["momentum"];
