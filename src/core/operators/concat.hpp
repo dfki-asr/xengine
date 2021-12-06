@@ -21,6 +21,91 @@ struct ConcatFwdContext {
   }
 };
 
+inline void concat_bwd(dnnl::memory &in_mem, dnnl::memory &out_mem,
+                       const size_t offset) {
+  dnnl::engine dst_eng = out_mem.get_engine();
+  dnnl::engine src_eng = in_mem.get_engine();
+  assert(g_data_type == memory::data_type::f32);
+  size_t size = out_mem.get_desc().get_size() / sizeof(g_data_type);
+#ifdef DNNL_WITH_SYCL
+  bool is_cpu_sycl = (DNNL_CPU_RUNTIME == DNNL_RUNTIME_SYCL &&
+                      dst_eng.get_kind() == dnnl::engine::kind::cpu);
+  bool is_gpu_sycl = (DNNL_GPU_RUNTIME == DNNL_RUNTIME_SYCL &&
+                      dst_eng.get_kind() == dnnl::engine::kind::gpu);
+  if (is_cpu_sycl || is_gpu_sycl) {
+    auto mkind = dnnl::sycl_interop::get_memory_kind(out_mem);
+    if (mkind == dnnl::sycl_interop::memory_kind::buffer) {
+      auto dst_buffer = dnnl::sycl_interop::get_buffer<float>(out_mem);
+      auto dst = dst_buffer.get_access<::sycl::access::mode::write>();
+      float *dst_ptr = dst.get_pointer();
+      if (!dst_ptr)
+        throw std::runtime_error("get_pointer returned nullptr.");
+      auto src_buffer = dnnl::sycl_interop::get_buffer<float>(in_mem);
+      auto src = src_buffer.get_access<::sycl::access::mode::read>();
+      float *src_ptr = src.get_pointer();
+      if (!src_ptr)
+        throw std::runtime_error("get_pointer returned nullptr.");
+      for (size_t i = 0; i < size; ++i) {
+        dst_ptr[i] = src_ptr[offset + i];
+      }
+    } else {
+      assert(mkind == dnnl::sycl_interop::memory_kind::usm);
+      float *dst_ptr = static_cast<float *>(out_mem.get_data_handle());
+      if (!dst_ptr)
+        throw std::runtime_error("get_data_handle returned nullptr.");
+      float *src_ptr = static_cast<float *>(in_mem.get_data_handle());
+      if (!src_ptr)
+        throw std::runtime_error("get_data_handle returned nullptr.");
+      if (is_cpu_sycl) {
+        for (size_t i = 0; i < size; ++i) {
+          dst_ptr[i] = src_ptr[offset + i];
+        }
+      } else {
+        auto sycl_queue = dnnl::sycl_interop::get_queue(dnnl::stream(dst_eng));
+        auto execute_queue = sycl_queue.submit([&](::sycl::handler &cgh) {
+          cgh.parallel_for<kernel_tag>(::sycl::range<1>(size),
+                                       [=](::sycl::id<1> i) {
+                                         int idx = (int)i[0];
+                                         dst_ptr[idx] = src_ptr[offset + i];
+                                       });
+        });
+      }
+    }
+    return;
+  }
+#endif
+#if DNNL_GPU_RUNTIME == DNNL_RUNTIME_OCL
+  if (dst_eng.get_kind() == dnnl::engine::kind::gpu ||
+      src_eng.get_kind() == dnnl::engine::kind::gpu) {
+    void *mapped_dst_ptr = out_mem.map_data();
+    void *mapped_src_ptr = in_mem.map_data();
+    if (mapped_dst_ptr && mapped_src_ptr) {
+      for (size_t i = 0; i < size; ++i) {
+        mapped_dst_ptr[i] = mapped_src_ptr[offset + i];
+      }
+    }
+    out_mem.unmap_data(mapped_dst_ptr);
+    return;
+  }
+#endif
+
+  if (dst_eng.get_kind() == dnnl::engine::kind::cpu &&
+      src_eng.get_kind() == dnnl::engine::kind::cpu) {
+    float *dst = static_cast<float *>(out_mem.get_data_handle());
+    if (!dst)
+      throw std::runtime_error("get_data_handle returned nullptr.");
+    float *src = static_cast<float *>(in_mem.get_data_handle());
+    if (!src)
+      throw std::runtime_error("get_data_handle returned nullptr.");
+    for (size_t i = 0; i < size; ++i) {
+      dst[i] = src[offset + i];
+    }
+    return;
+  }
+
+  assert(!"not expected");
+}
+
 class Concat : public Operator {
 public:
   Concat(string n, vector<string> i, vector<string> o, int a,
@@ -28,6 +113,12 @@ public:
       : Operator(n, "Concat", i, o, tensors, training) {
     axis = a;
     _f_op = ExecutionOp("fwd_" + n, "fwd", i, o);
+    auto b_o = vector<string>();
+    for (size_t j = 0; j < i.size(); j++) {
+      b_o.push_back("diff_" + i.at(j));
+    }
+    _b_op =
+        ExecutionOp("bwd_" + n, "bwd", vector<string>{"diff_" + o.at(0)}, b_o);
     _fwd_context = nullptr;
     init(tensors);
   }
@@ -91,7 +182,34 @@ public:
   }
 
   void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
-                memory::format_tag outputTag, const int measure_time) {}
+                memory::format_tag outputTag, const int measure_time) {
+    auto begin = get_time();
+    auto eng = dev.get_engine();
+    auto time_name = getBackwardTimeName(eng);
+    auto in_diff_name = _b_op.input.at(0);
+    // get memory
+    auto in_diff_mem = make_memory(tensors[in_diff_name]->desc(), eng);
+    auto s = stream(eng);
+    timings[time_name][in_diff_name] = maybe_do_reorder(
+        tensors[in_diff_name]->get_memory(), in_diff_mem, s, measure_time);
+    size_t offset = 0;
+    for (size_t i = 0; i < _b_op.output.size(); ++i) {
+      auto out_diff_name = _b_op.output.at(i);
+      auto src_name = _f_op.input.at(i);
+      auto out_diff_desc = tensors[src_name]->desc();
+      auto out_diff_mem = make_memory(out_diff_desc, eng);
+      // copy correct part of in_diff_name to out_diff_mem
+      concat_bwd(in_diff_mem, out_diff_mem, offset);
+      tensors[out_diff_name]->init(out_diff_desc, eng);
+      tensors[out_diff_name]->set_memory(out_diff_mem);
+      offset += product(tensors[src_name]->dims());
+    }
+    timings[time_name]["create"] = 0.0f;
+    if (measure_time) {
+      timings[time_name]["exe"] = get_elapsed_ms(begin);
+      timings[time_name]["total"] = get_elapsed_ms(begin);
+    }
+  }
   int axis;
   shared_ptr<ConcatFwdContext> _fwd_context;
 };
