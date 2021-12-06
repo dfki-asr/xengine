@@ -903,7 +903,10 @@ void Network::_initOperators(unordered_map<string, vector<string>> &inputs,
     }
     _operator_names.push_back(name);
   }
-  _insertSoftmax();
+  if (_operators.at(_operators.size() - 1)->type.find("Softmax") ==
+      string::npos) {
+    _insertSoftmax();
+  }
 }
 
 void Network::_fillModelParameters() {
