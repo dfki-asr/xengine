@@ -113,8 +113,9 @@ public:
         auto ws_name = _f_op.output.at(1);
         if (_fwd_context->ws_mem == nullptr) {
           _fwd_context->ws_mem.reset(
-              new memory(_fwd_context->fwd_pd.get()->dst_desc(), eng));
-          tensors[ws_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), eng);
+              new memory(_fwd_context->fwd_pd.get()->workspace_desc(), eng));
+          tensors[ws_name]->init(_fwd_context->fwd_pd.get()->workspace_desc(),
+                                 eng);
         }
       }
       timings[time_name]["create"] = get_elapsed_ms(time_create);
@@ -180,6 +181,7 @@ public:
           new memory(_bwd_context->bwd_pd.get()->src_desc(), eng));
       _bwd_context->in_diff_mem.reset(
           new memory(_bwd_context->bwd_pd.get()->src_desc(), eng));
+      _bwd_context->ws_mem.reset(new memory(tensors[ws_name]->desc(), eng));
       _bwd_context->out_diff_mem.reset(
           new memory(_bwd_context->bwd_pd.get()->src_desc(), eng));
       tensors[out_diff_name]->init(_bwd_context->bwd_pd.get()->src_desc(), eng);
