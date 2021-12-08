@@ -42,7 +42,6 @@ Network::~Network() {
   _tensors.clear();
   for (auto op = _operators.begin(); op != _operators.end(); op++) {
     op->reset();
-    op->release();
   }
   _operators.clear();
   for (auto dev = _devices.begin(); dev != _devices.end(); dev++) {
@@ -693,7 +692,7 @@ void Network::_insertSoftmax() {
         make_unique<Tensor>(out_diff_name, _tensors[input_tensor]->dims()));
     _tensors[out_diff_name]->producer = name;
   }
-  _operators.push_back(move(make_unique<SoftmaxWithLoss>(
+  _operators.push_back(move(make_shared<SoftmaxWithLoss>(
       name, vector<string>({input_tensor, labels_name}),
       vector<string>({out_name, loss_name}), axis, _tensors, _training)));
   _operator_names.push_back(name);
@@ -815,66 +814,66 @@ void Network::_initOperators(unordered_map<string, vector<string>> &inputs,
       continue;
     if (type == "Conv") {
       _operators.push_back(
-          make_unique<Conv>(name, input, output, dim_parameters["strides"],
+          make_shared<Conv>(name, input, output, dim_parameters["strides"],
                             dim_parameters["kernel_shape"],
                             dim_parameters["pads"], _tensors, _training));
     } else if (type == "ConvTranspose") {
-      _operators.push_back(move(make_unique<ConvTranspose>(
+      _operators.push_back(move(make_shared<ConvTranspose>(
           name, input, output, dim_parameters["strides"],
           dim_parameters["kernel_shape"], dim_parameters["pads"], _tensors,
           _training)));
     } else if (type == "MaxPool") {
       _operators.push_back(move(
-          make_unique<MaxPool>(name, input, output, dim_parameters["strides"],
+          make_shared<MaxPool>(name, input, output, dim_parameters["strides"],
                                dim_parameters["kernel_shape"],
                                dim_parameters["pads"], _tensors, _training)));
     } else if (type == "AveragePool") {
-      _operators.push_back(move(make_unique<AveragePool>(
+      _operators.push_back(move(make_shared<AveragePool>(
           name, input, output, dim_parameters["strides"],
           dim_parameters["kernel_shape"], dim_parameters["pads"], _tensors,
           _training)));
     } else if (type == "GlobalAveragePool") {
       const auto i_dims = _tensors[input.at(0)]->dims();
       memory::dims kernel = {i_dims.at(2), i_dims.at(3)};
-      _operators.push_back(move(make_unique<GlobalAveragePool>(
+      _operators.push_back(move(make_shared<GlobalAveragePool>(
           name, input, output, kernel, _tensors, _training)));
     } else if (type == "Gemm") {
       _operators.push_back(
-          move(make_unique<Gemm>(name, input, output, _tensors, _training)));
+          move(make_shared<Gemm>(name, input, output, _tensors, _training)));
     } else if (type == "Relu") {
       _operators.push_back(
-          move(make_unique<Relu>(name, input, output, _tensors, _training)));
+          move(make_shared<Relu>(name, input, output, _tensors, _training)));
     } else if (type == "LeakyRelu") {
       float alpha = float_parameters["alpha"];
-      _operators.push_back(move(make_unique<LeakyRelu>(
+      _operators.push_back(move(make_shared<LeakyRelu>(
           name, input, output, alpha, _tensors, _training)));
     } else if (type == "Dropout") {
       float probability = float_parameters["ratio"];
-      _operators.push_back(move(make_unique<Dropout>(
+      _operators.push_back(move(make_shared<Dropout>(
           name, input, output, probability, _tensors, _training)));
     } else if (type == "LRN") {
       float alpha = float_parameters["alpha"];
       float beta = float_parameters["beta"];
       float bias = float_parameters["bias"];
       int size = int_parameters["size"];
-      _operators.push_back(move(make_unique<LRN>(
+      _operators.push_back(move(make_shared<LRN>(
           name, input, output, alpha, beta, bias, size, _tensors, _training)));
     } else if (type == "BatchNormalization") {
       float epsilon = float_parameters["epsilon"];
       float momentum = float_parameters["momentum"];
-      _operators.push_back(move(make_unique<BatchNormalization>(
+      _operators.push_back(move(make_shared<BatchNormalization>(
           name, input, output, epsilon, momentum, _tensors, _training)));
     } else if (type == "InstanceNormalization") {
       float epsilon = float_parameters["epsilon"];
-      _operators.push_back(move(make_unique<InstanceNormalization>(
+      _operators.push_back(move(make_shared<InstanceNormalization>(
           name, input, output, epsilon, _tensors, _training)));
     } else if (type == "Add") {
       _operators.push_back(
-          move(make_unique<Add>(name, input, output, _tensors, _training)));
+          move(make_shared<Add>(name, input, output, _tensors, _training)));
     } else if (type == "Concat") {
       int axis = int_parameters["axis"];
       _operators.push_back(move(
-          make_unique<Concat>(name, input, output, axis, _tensors, _training)));
+          make_shared<Concat>(name, input, output, axis, _tensors, _training)));
     } else if (type == "Softmax") {
       const auto input_tensor = input[0];
       const auto out_name = output[0];
@@ -895,7 +894,7 @@ void Network::_initOperators(unordered_map<string, vector<string>> &inputs,
         _tensors[out_diff_name]->producer = name;
       }
       const int axis = _tensors[input_tensor]->dims().size() - 1;
-      _operators.push_back(move(make_unique<SoftmaxWithLoss>(
+      _operators.push_back(move(make_shared<SoftmaxWithLoss>(
           name, vector<string>({input_tensor, labels_name}),
           vector<string>({out_name, loss_name}), axis, _tensors, _training)));
     } else {
