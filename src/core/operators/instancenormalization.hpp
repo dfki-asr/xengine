@@ -76,7 +76,7 @@ struct INBwdContext {
 class InstanceNormalization : public Operator {
 public:
   InstanceNormalization(string n, vector<string> i, vector<string> o, float e,
-                        unordered_map<string, unique_ptr<Tensor>> &tensors,
+                        unordered_map<string, shared_ptr<Tensor>> &tensors,
                         int training)
       : Operator(n, "InstanceNormalization", i, o, tensors, training) {
     epsilon = e;
@@ -99,7 +99,7 @@ public:
   void reset_fwd_primitives() { _fwd_context.reset(); }
   void reset_bwd_primitives() { _bwd_context.reset(); }
 
-  void forward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();
@@ -139,11 +139,11 @@ public:
       auto stat_md =
           memory::desc(stat_dims, g_data_type, memory::format_tag::nc);
       if (_f_op.input.size() < 4) {
-        tensors[mean_name] = move(make_unique<Tensor>(mean_name, stat_dims));
+        tensors[mean_name] = move(make_shared<Tensor>(mean_name, stat_dims));
         tensors[mean_name]->init(stat_md, eng);
       }
       if (_f_op.input.size() < 5) {
-        tensors[var_name] = move(make_unique<Tensor>(var_name, stat_dims));
+        tensors[var_name] = move(make_shared<Tensor>(var_name, stat_dims));
         tensors[var_name]->init(stat_md, eng);
       }
       if (_fwd_context->mean_mem == nullptr) {
@@ -276,7 +276,7 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     throw runtime_error("InstanceNormalization is not yet implemented!");
   }

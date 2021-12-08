@@ -7,7 +7,7 @@ class MaxPool : public Pool {
 public:
   MaxPool(string n, vector<string> i, vector<string> o, memory::dims s,
           memory::dims k, memory::dims p,
-          unordered_map<string, unique_ptr<Tensor>> &tensors, int training)
+          unordered_map<string, shared_ptr<Tensor>> &tensors, int training)
       : Pool(n, "MaxPool", i, o, s, k, p, tensors, training) {}
 };
 #endif

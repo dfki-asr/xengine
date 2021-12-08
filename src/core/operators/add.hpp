@@ -26,7 +26,7 @@ struct AddFwdContext {
 class Add : public Operator {
 public:
   Add(string n, vector<string> i, vector<string> o,
-      unordered_map<string, unique_ptr<Tensor>> &tensors, int training)
+      unordered_map<string, shared_ptr<Tensor>> &tensors, int training)
       : Operator(n, "Add", i, o, tensors, training) {
     _f_op = ExecutionOp("fwd_" + n, "fwd", i, o);
     _b_op = ExecutionOp("bwd_" + n, "bwd", vector<string>{"diff_" + o.at(0)},
@@ -37,7 +37,7 @@ public:
   ~Add() { reset_fwd_primitives(); }
   void reset_fwd_primitives() { _fwd_context.reset(); }
 
-  void forward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();
@@ -95,7 +95,7 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();

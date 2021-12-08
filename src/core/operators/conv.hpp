@@ -73,7 +73,7 @@ class Conv : public Operator_With_Weights {
 public:
   Conv(string n, vector<string> i, vector<string> o, memory::dims s,
        memory::dims k, memory::dims p,
-       unordered_map<string, unique_ptr<Tensor>> &tensors, int training)
+       unordered_map<string, shared_ptr<Tensor>> &tensors, int training)
       : Operator_With_Weights(n, "Conv", i, o, tensors, training) {
     stride = s;
     kernel = k;
@@ -91,7 +91,7 @@ public:
   void reset_fwd_primitives() { _fwd_context.reset(); }
   void reset_bwd_primitives() { _bwd_context.reset(); }
 
-  void forward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();
@@ -157,7 +157,7 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();

@@ -269,18 +269,18 @@ inline float _rand_float() {
 }
 
 inline void
-insert_nonInput_tensors(unordered_map<string, unique_ptr<Tensor>> &tensors,
+insert_nonInput_tensors(unordered_map<string, shared_ptr<Tensor>> &tensors,
                         const RepeatedPtrField<ValueInfoProto> &onnx_info) {
   for (auto info : onnx_info) {
     const auto name = info.name();
     const auto shape = info.type().tensor_type().shape();
     const auto dims = _get_dim_from_shape(shape);
-    tensors.emplace(name, move(make_unique<Tensor>(name, dims)));
+    tensors.emplace(name, move(make_shared<Tensor>(name, dims)));
   }
 }
 
 inline void
-insert_input_tensors(unordered_map<string, unique_ptr<Tensor>> &tensors,
+insert_input_tensors(unordered_map<string, shared_ptr<Tensor>> &tensors,
                      const GraphProto &graph) {
   auto onnx_info = graph.input();
   // Input
@@ -289,13 +289,13 @@ insert_input_tensors(unordered_map<string, unique_ptr<Tensor>> &tensors,
   const auto first_node_dims =
       _get_dim_from_shape(first_node.type().tensor_type().shape());
   tensors.emplace(first_node_name,
-                  move(make_unique<Tensor>(first_node_name, first_node_dims)));
+                  move(make_shared<Tensor>(first_node_name, first_node_dims)));
   // Labels
   auto last_node = graph.output()[0];
   const auto last_node_dims =
       _get_dim_from_shape(last_node.type().tensor_type().shape());
   memory::dims label_dims = memory::dims({last_node_dims.at(0), 1});
-  tensors.emplace("labels", move(make_unique<Tensor>("labels", label_dims)));
+  tensors.emplace("labels", move(make_shared<Tensor>("labels", label_dims)));
   // Parameters
   auto initializers = graph.initializer();
   assert(initializers.size() == onnx_info.size() - 1);
@@ -304,18 +304,18 @@ insert_input_tensors(unordered_map<string, unique_ptr<Tensor>> &tensors,
     assert(onnx_info.data_type() == 1);
     const auto name = onnx_info.name();
     const memory::dims dims = _get_dim_from_shape(onnx_info.dims());
-    tensors.emplace(name, move(make_unique<Tensor>(name, dims)));
+    tensors.emplace(name, move(make_shared<Tensor>(name, dims)));
   }
 }
 
-inline unordered_map<string, unique_ptr<Tensor>>
+inline unordered_map<string, shared_ptr<Tensor>>
 get_tensors(const ModelProto &model) {
-  auto tensors = unordered_map<string, unique_ptr<Tensor>>();
+  auto tensors = unordered_map<string, shared_ptr<Tensor>>();
   insert_nonInput_tensors(tensors, model.graph().value_info());
   insert_nonInput_tensors(tensors, model.graph().output());
   insert_input_tensors(tensors, model.graph());
   tensors.emplace("loss",
-                  move(make_unique<Tensor>("loss", tensors["labels"]->dims())));
+                  move(make_shared<Tensor>("loss", tensors["labels"]->dims())));
   return tensors;
 }
 

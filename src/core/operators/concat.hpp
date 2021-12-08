@@ -109,7 +109,7 @@ inline void concat_bwd(dnnl::memory &in_mem, dnnl::memory &out_mem,
 class Concat : public Operator {
 public:
   Concat(string n, vector<string> i, vector<string> o, int a,
-         unordered_map<string, unique_ptr<Tensor>> &tensors, int training)
+         unordered_map<string, shared_ptr<Tensor>> &tensors, int training)
       : Operator(n, "Concat", i, o, tensors, training) {
     axis = a;
     _f_op = ExecutionOp("fwd_" + n, "fwd", i, o);
@@ -125,7 +125,7 @@ public:
   ~Concat() { reset_fwd_primitives(); }
   void reset_fwd_primitives() { _fwd_context.reset(); }
 
-  void forward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();
@@ -181,7 +181,7 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();

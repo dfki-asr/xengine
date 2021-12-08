@@ -38,7 +38,7 @@ class ConvTranspose : public Operator_With_Weights {
 public:
   ConvTranspose(string n, vector<string> i, vector<string> o, memory::dims s,
                 memory::dims k, memory::dims p,
-                unordered_map<string, unique_ptr<Tensor>> &tensors,
+                unordered_map<string, shared_ptr<Tensor>> &tensors,
                 int training)
       : Operator_With_Weights(n, "ConvTranspose", i, o, tensors, training) {
     stride = s;
@@ -52,7 +52,7 @@ public:
   ~ConvTranspose() { reset_fwd_primitives(); }
   void reset_fwd_primitives() { _fwd_context.reset(); }
 
-  void forward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();
@@ -115,7 +115,7 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     throw runtime_error("convTranspose backward not yet implemented!");
   }

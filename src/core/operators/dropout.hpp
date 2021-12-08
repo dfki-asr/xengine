@@ -93,7 +93,7 @@ inline void dropout(dnnl::memory &in_mem, dnnl::memory &out_mem,
 class Dropout : public Operator {
 public:
   Dropout(string n, vector<string> i, vector<string> o, float p,
-          unordered_map<string, unique_ptr<Tensor>> &tensors, int training)
+          unordered_map<string, shared_ptr<Tensor>> &tensors, int training)
       : Operator(n, "Dropout", i, o, tensors, training) {
     probability = p;
     _f_op = ExecutionOp("fwd_" + n, "fwd", i, o);
@@ -102,7 +102,7 @@ public:
     init(tensors);
   }
 
-  void forward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();
@@ -141,7 +141,7 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();

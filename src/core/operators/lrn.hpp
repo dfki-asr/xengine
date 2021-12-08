@@ -55,7 +55,7 @@ struct LRNBwdContext {
 class LRN : public Operator {
 public:
   LRN(string n, vector<string> i, vector<string> o, float a, float be, float bi,
-      int s, unordered_map<string, unique_ptr<Tensor>> &tensors, int training)
+      int s, unordered_map<string, shared_ptr<Tensor>> &tensors, int training)
       : Operator(n, "LRN", i, o, tensors, training) {
     alpha = a;
     beta = be;
@@ -86,7 +86,7 @@ public:
   void reset_fwd_primitives() { _fwd_context.reset(); }
   void reset_bwd_primitives() { _bwd_context.reset(); }
 
-  void forward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();
@@ -146,7 +146,7 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();

@@ -35,9 +35,7 @@ Network::~Network() {
   _primitives.clear();
   _primitive_args.clear();
   for (auto t = _tensors.begin(); t != _tensors.end(); t++) {
-    t->second->release();
     t->second.reset();
-    t->second.release();
   }
   _tensors.clear();
   for (auto op = _operators.begin(); op != _operators.end(); op++) {
@@ -677,11 +675,11 @@ void Network::_insertSoftmax() {
   const auto input_tensor = _operators.at(_operators.size() - 1)->output.at(0);
   const auto input_dims = _tensors[input_tensor]->dims();
   const int axis = input_dims.size() - 1;
-  _tensors[out_name] = move(make_unique<Tensor>(out_name, input_dims));
+  _tensors[out_name] = move(make_shared<Tensor>(out_name, input_dims));
   _tensors[out_name]->producer = name;
   _tensors[out_name]->add_consumer("external");
   _tensors[loss_name] =
-      move(make_unique<Tensor>(loss_name, _tensors[labels_name]->dims()));
+      move(make_shared<Tensor>(loss_name, _tensors[labels_name]->dims()));
   _tensors[loss_name]->producer = name;
   _tensors[loss_name]->add_consumer("external");
   _tensors[input_tensor]->add_consumer("fwd_" + name);
@@ -689,7 +687,7 @@ void Network::_insertSoftmax() {
   if (_training) {
     auto out_diff_name = "diff_" + input_tensor;
     _tensors[out_diff_name] = move(
-        make_unique<Tensor>(out_diff_name, _tensors[input_tensor]->dims()));
+        make_shared<Tensor>(out_diff_name, _tensors[input_tensor]->dims()));
     _tensors[out_diff_name]->producer = name;
   }
   _operators.push_back(move(make_shared<SoftmaxWithLoss>(
@@ -757,7 +755,7 @@ void Network::_preprocessModel(unordered_map<string, vector<string>> &inputs,
     if (node.op_type() == "Dropout" && _training == true && output.size() > 1) {
       auto mask_name = output[1];
       _tensors[mask_name] =
-          move(make_unique<Tensor>(mask_name, _tensors[output[0]]->dims()));
+          move(make_shared<Tensor>(mask_name, _tensors[output[0]]->dims()));
     }
     for (auto tensor : output)
       _tensors[tensor]->producer = fwd_prefix + name;
@@ -773,7 +771,7 @@ void Network::_preprocessModel(unordered_map<string, vector<string>> &inputs,
         auto output_name = outputs[name].at(0);
         auto ws_name = output_name + "_ws";
         _tensors[ws_name] =
-            move(make_unique<Tensor>(ws_name, _tensors[output_name]->dims()));
+            move(make_shared<Tensor>(ws_name, _tensors[output_name]->dims()));
         _tensors[ws_name]->producer = fwd_prefix + name;
       } else if (type == "BatchNormalization") {
         auto gamma_diff_name =
@@ -781,13 +779,13 @@ void Network::_preprocessModel(unordered_map<string, vector<string>> &inputs,
         auto channels = _tensors[inputs[name].at(0)]->dims().at(1);
         auto gamma_dims = memory::dims({channels, channels});
         _tensors[gamma_diff_name] =
-            move(make_unique<Tensor>(gamma_diff_name, gamma_dims));
+            move(make_shared<Tensor>(gamma_diff_name, gamma_dims));
         _tensors[gamma_diff_name]->producer = bwd_prefix + name;
       }
       for (auto tensor : inputs[name]) {
         auto out_diff_name = "diff_" + tensor;
         _tensors[out_diff_name] =
-            move(make_unique<Tensor>(out_diff_name, _tensors[tensor]->dims()));
+            move(make_shared<Tensor>(out_diff_name, _tensors[tensor]->dims()));
         _tensors[out_diff_name]->producer = bwd_prefix + name;
       }
     }
@@ -878,19 +876,19 @@ void Network::_initOperators(unordered_map<string, vector<string>> &inputs,
       const auto input_tensor = input[0];
       const auto out_name = output[0];
       _tensors[out_name] =
-          move(make_unique<Tensor>(out_name, _tensors[input_tensor]->dims()));
+          move(make_shared<Tensor>(out_name, _tensors[input_tensor]->dims()));
       _tensors[out_name]->producer = name;
       auto labels_name = "labels";
       _tensors[labels_name]->add_consumer("fwd_" + name);
       auto loss_name = "loss";
       _tensors[loss_name] =
-          move(make_unique<Tensor>(loss_name, _tensors[labels_name]->dims()));
+          move(make_shared<Tensor>(loss_name, _tensors[labels_name]->dims()));
       _tensors[loss_name]->producer = name;
       _tensors[loss_name]->add_consumer("external");
       if (_training) {
         auto out_diff_name = "diff_" + input_tensor;
         _tensors[out_diff_name] = move(
-            make_unique<Tensor>(out_diff_name, _tensors[input_tensor]->dims()));
+            make_shared<Tensor>(out_diff_name, _tensors[input_tensor]->dims()));
         _tensors[out_diff_name]->producer = name;
       }
       const int axis = _tensors[input_tensor]->dims().size() - 1;

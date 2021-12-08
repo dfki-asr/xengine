@@ -71,7 +71,7 @@ private:
   onnx::ModelProto _model;
   vector<string> _operator_names;
   map<string, shared_ptr<Device>> _devices;
-  unordered_map<string, unique_ptr<Tensor>> _tensors;
+  unordered_map<string, shared_ptr<Tensor>> _tensors;
   vector<shared_ptr<Operator>> _operators;
   vector<unique_ptr<primitive>> _primitives;
   vector<unordered_map<int, memory>> _primitive_args;

@@ -73,7 +73,7 @@ class BatchNormalization : public Operator {
 public:
   BatchNormalization(string n, vector<string> i, vector<string> o, float e,
                      float m,
-                     unordered_map<string, unique_ptr<Tensor>> &tensors,
+                     unordered_map<string, shared_ptr<Tensor>> &tensors,
                      int training)
       : Operator(n, "BatchNormalization", i, o, tensors, training) {
     epsilon = e;
@@ -99,7 +99,7 @@ public:
 
   memory
   prepare_gamma_beta(memory::desc &gamma_beta_md,
-                     unordered_map<string, unique_ptr<Tensor>> &tensors) {
+                     unordered_map<string, shared_ptr<Tensor>> &tensors) {
     auto gamma_name = _f_op.input.at(1);
     auto beta_name = _f_op.input.at(2);
     auto gamma_beta_dims = gamma_beta_md.dims();
@@ -121,7 +121,7 @@ public:
     return make_memory(gamma_beta_md, cpu_eng, cpu_gamma_beta_data.data());
   }
 
-  void forward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();
@@ -189,7 +189,7 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
     auto eng = dev.get_engine();

@@ -32,7 +32,7 @@ public:
 class Operator {
 public:
   Operator(string n, string t, vector<string> i, vector<string> o,
-           unordered_map<string, unique_ptr<Tensor>> &tensors, int train)
+           unordered_map<string, shared_ptr<Tensor>> &tensors, int train)
       : name(n), type(t), input(i), output(o), training(train) {}
   string name;
   string type;
@@ -60,7 +60,7 @@ public:
                        memory::format_tag tag = memory::format_tag::any) {
     return memory::desc(dims, g_data_type, tag);
   }
-  void init(unordered_map<string, unique_ptr<Tensor>> &tensors) {
+  void init(unordered_map<string, shared_ptr<Tensor>> &tensors) {
     // forward
     for (auto i : _f_op.input) {
       tensors[i]->add_consumer(_f_op.name);
@@ -89,11 +89,11 @@ public:
   float getFwdMemoryConsumption() { return _f_op.memory_consumption; }
   float getBwdMemoryConsumption() { return _b_op.memory_consumption; }
   virtual void forward(Device &dev,
-                       unordered_map<string, unique_ptr<Tensor>> &tensors,
+                       unordered_map<string, shared_ptr<Tensor>> &tensors,
                        memory::format_tag tag = memory::format_tag::any,
                        int measure_time = 0) = 0;
   virtual void backward(Device &dev,
-                        unordered_map<string, unique_ptr<Tensor>> &tensors,
+                        unordered_map<string, shared_ptr<Tensor>> &tensors,
                         memory::format_tag tag = memory::format_tag::any,
                         int measure_time = 0) = 0;
   virtual void reset_fwd_primitives() {}
@@ -104,7 +104,7 @@ public:
 class Operator_With_Weights : public Operator {
 public:
   Operator_With_Weights(string n, string t, vector<string> i, vector<string> o,
-                        unordered_map<string, unique_ptr<Tensor>> &tensors,
+                        unordered_map<string, shared_ptr<Tensor>> &tensors,
                         int training)
       : Operator(n, t, i, o, tensors, training) {
     auto b_i = vector<string>{"diff_" + o.at(0)};
