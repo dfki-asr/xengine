@@ -6,6 +6,8 @@
 #include "ilp_solver_grb.cpp"
 #endif
 
+#include <future>
+
 using namespace std;
 using namespace dnnl;
 
@@ -556,9 +558,38 @@ void Network::_backward() {
   _Xpass(is_fwd_pass);
 }
 
-void Network::_Xpass(const int is_fwd_pass) {
+float runOP(int is_fwd_pass, shared_ptr<Operator> op, shared_ptr<Device> dev,
+            unordered_map<std::string, shared_ptr<Tensor>> tensors,
+            memory::format_tag out_tag, int verbose) {
   size_t num_executions = 10;
   size_t warmup_iterations = 5;
+  dnnl_set_verbose(0);
+  for (size_t i = 0; i < warmup_iterations; i++) {
+    if (is_fwd_pass) {
+      op->forward(*dev.get(), tensors, out_tag, 0);
+    } else {
+      op->backward(*dev.get(), tensors, out_tag, 0);
+    }
+  }
+  auto begin = get_time();
+  int measure_time = 0;
+  for (size_t i = 0; i < num_executions; i++) {
+    if (i == num_executions - 1) {
+      measure_time = 1;
+      dnnl_set_verbose(verbose > 1);
+    }
+    if (is_fwd_pass) {
+      op->forward(*dev.get(), tensors, out_tag, measure_time);
+    } else {
+      op->backward(*dev.get(), tensors, out_tag, measure_time);
+    }
+  }
+  float avg_time = get_elapsed_ms(begin) / static_cast<float>(num_executions);
+  dnnl_set_verbose(0);
+  return avg_time;
+}
+
+void Network::_Xpass(const int is_fwd_pass) {
   vector<float> avg_times = vector<float>();
   size_t opID, schedID;
   int releaseOpID, releaseSchedID;
@@ -623,36 +654,24 @@ void Network::_Xpass(const int is_fwd_pass) {
     // Compute
     _maybe_provide_dummy_inputs(inputs);
     auto e = _getExecuteOperator(schedID);
-    auto eng = _devices[e.engineID]->get_engine();
     auto out_tag = e.outputTag.to_dnnl();
-    _measure_time = 0;
-    dnnl_set_verbose(0);
-    for (size_t i = 0; i < warmup_iterations; i++) {
-      if (is_fwd_pass) {
-        _operators.at(opID)->forward(*_devices[e.engineID].get(), _tensors,
-                                     out_tag, _measure_time);
-      } else {
-        _operators.at(opID)->backward(*_devices[e.engineID].get(), _tensors,
-                                      out_tag, _measure_time);
-      }
+    float avg_time = 0.0f;
+    std::packaged_task<float(int, shared_ptr<Operator>, shared_ptr<Device>,
+                             unordered_map<std::string, shared_ptr<Tensor>>,
+                             memory::format_tag, int)>
+        task(runOP);
+    auto future = task.get_future();
+    std::thread thr(std::move(task), is_fwd_pass, _operators.at(opID),
+                    _devices[e.engineID], _tensors, out_tag, _verbose);
+    if (future.wait_for(10s) != std::future_status::timeout) {
+      thr.join();
+      avg_time = future.get(); // this will propagate exception from f() if any
+    } else {
+      thr.detach(); // we leave the thread still running
+      throw std::runtime_error("Timeout in operator " +
+                               _operators.at(opID)->name + "_" + mode);
     }
-    auto begin = get_time();
-    for (size_t i = 0; i < num_executions; i++) {
-      if (i == num_executions - 1) {
-        _measure_time = 1;
-        dnnl_set_verbose(_verbose > 1);
-      }
-      if (is_fwd_pass) {
-        _operators.at(opID)->forward(*_devices[e.engineID].get(), _tensors,
-                                     out_tag, _measure_time);
-      } else {
-        _operators.at(opID)->backward(*_devices[e.engineID].get(), _tensors,
-                                      out_tag, _measure_time);
-      }
-    }
-    dnnl_set_verbose(0);
-    avg_times.push_back(get_elapsed_ms(begin) /
-                        static_cast<float>(num_executions));
+    avg_times.push_back(avg_time);
   }
   float total_avg = accumulate(avg_times.begin(), avg_times.end(), 0.0);
   if (_verbose > 0) {
