@@ -91,9 +91,9 @@ void Network::maxMemoryDemandInfo() {
        << to_string(tensor_md) << " MB." << endl;
 }
 
-void Network::setSchedule(const string &schedule_file) {
+void Network::setSchedule(const string &schedulefile) {
   unsetSchedule();
-  _schedule = move(make_unique<Schedule>(schedule_file));
+  _schedule = move(make_unique<Schedule>(schedulefile));
 }
 
 void Network::unsetSchedule() {
@@ -102,6 +102,26 @@ void Network::unsetSchedule() {
     _schedule.release();
     _schedule = nullptr;
   }
+}
+
+void Network::runSchedule(const string &schedulefile, const string &images,
+                          const string &labels, const size_t num_iterations) {
+  if (_verbose > 0) {
+    cout << "Run schedule file " << schedulefile << " ... (simple optimizer)"
+         << endl;
+  }
+  setSchedule(schedulefile);
+  run(images, labels, num_iterations);
+}
+
+void Network::createSchedule(const string &schedulefile, const string &images,
+                             const string &labels) {
+  if (_verbose > 0) {
+    cout << "Create schedule file " << schedulefile << " ... (simple optimizer)"
+         << endl;
+  }
+  benchmark(images, labels);
+  writeScheduleFile(schedulefile);
 }
 
 void Network::run(const string &data_path, const string &label_path,
@@ -138,7 +158,7 @@ void Network::benchmark(const string &data_path, const string &label_path) {
   _benchmark_mode = 0;
 }
 
-void Network::writeScheduleFile(const string &schedule_file) {
+void Network::writeScheduleFile(const string &schedulefile) {
   string best_schedule;
   for (size_t opID = 0; opID < _operators.size(); opID++) {
     _scheduleOperator(opID, "fwd_", best_schedule);
@@ -153,7 +173,7 @@ void Network::writeScheduleFile(const string &schedule_file) {
   if (_verbose > 0) {
     cout << "Best schedule: \n" << best_schedule << endl;
   }
-  writeString2File(schedule_file, best_schedule);
+  writeString2File(schedulefile, best_schedule);
 }
 
 vector<string> Network::_selectDevicePerOp(vector<string> dev_names,
@@ -246,7 +266,7 @@ void Network::_collectConsumerCopyCosts(const int opID, const int d,
 void Network::_fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
                              vector<pair<string, edge>> &edges) {
   // Execute full graph on different devices
-  string schedule_file = "tmp_schedule.txt";
+  string schedulefile = "tmp_schedule.txt";
   string sched;
   for (size_t opID = 0; opID < _operators.size(); opID++) {
     sched += _operators.at(opID)->type + ";" + device_per_op[opID] + ";0;any\n";
@@ -259,8 +279,8 @@ void Network::_fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
           _operators.at(opID)->type + ";" + device_per_op[schedID] + ";0;any\n";
     }
   }
-  writeString2File(schedule_file, sched);
-  setSchedule(schedule_file);
+  writeString2File(schedulefile, sched);
+  setSchedule(schedulefile);
   // Execute
   _forward();
   if (_training) {

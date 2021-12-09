@@ -15,12 +15,18 @@ public:
           const string &devices_path, const int training,
           const int verbose = 0);
   ~Network();
+  string name() { return _model_name; }
+  string mode() { return _mode; }
   void init();
   void run(const string &data_path, const string &label_path,
            const size_t num_iterations);
   void benchmark(const string &data_path, const string &label_path);
-  void writeScheduleFile(const string &schedule_file);
-  void setSchedule(const string &schedule_file);
+  void createSchedule(const string &schedulefile, const string &images,
+                      const string &labels);
+  void runSchedule(const string &schedulefile, const string &images,
+                   const string &labels, const size_t num_iterations);
+  void writeScheduleFile(const string &schedulefile);
+  void setSchedule(const string &schedulefile);
   void unsetSchedule();
   void solveILP(const string mpsfile, const string logfile,
                 vector<pair<string, edge>> &edges, vector<string> &dev_names,

@@ -3,24 +3,27 @@
 
 using namespace std;
 
+void createOrRunSchedule(Network &net, const string &images,
+                         const string &labels) {
+  const string &schedulefile =
+      "../data/schedules/" + net.name() + "_" + net.mode() + "_schedule.txt";
+  if (!checkIfFileExists(schedulefile)) {
+    net.createSchedule(schedulefile, images, labels);
+  } else {
+    const size_t num_iterations = 1;
+    net.runSchedule(schedulefile, images, labels, num_iterations);
+  }
+}
+
 void execute_network(const string &model_name, const string &images,
-                     const string &labels, const string &schedule_file,
-                     const string &devices, const int training,
-                     const string output_dir) {
+                     const string &labels, const string &devices,
+                     const int training, const string output_dir) {
   auto model = "../data/models/" + model_name + ".onnx";
   const int verbose = 1;
   const size_t num_iterations = 1;
   Network net = Network(model_name, model, devices, training, verbose);
   net.init();
-  if (verbose > 0) {
-    cout << "Simple optimizer ..." << endl;
-  }
-  if (!checkIfFileExists(schedule_file)) {
-    net.benchmark(images, labels);
-    net.writeScheduleFile(schedule_file);
-  }
-  net.setSchedule(schedule_file);
-  net.run(images, labels, num_iterations);
+  createOrRunSchedule(net, images, labels);
   if (verbose > 0) {
     cout << "ILP optimizer ..." << endl;
   }
@@ -40,81 +43,52 @@ void execute_network(const string &model_name, const string &images,
 
 void lenet(const int batchsize, const int training, const string devices,
            const string output_dir) {
-  string model_name, images, labels, schedule_file;
+  string model_name, images, labels;
   model_name = "lenet_bs" + to_string(batchsize);
   if (training) {
     images = "../data/datasets/mnist_train/train-images-idx3-ubyte";
     labels = "../data/datasets/mnist_train/train-labels-idx1-ubyte";
-    schedule_file = "../data/schedules/lenet_train_schedule.txt";
   } else {
     images = "../data/datasets/mnist_test/t10k-images-idx3-ubyte";
     labels = "../data/datasets/mnist_test/t10k-labels-idx1-ubyte";
-    schedule_file = "../data/schedules/lenet_inf_schedule.txt";
   }
-  execute_network(model_name, images, labels, schedule_file, devices, training,
-                  output_dir);
+  execute_network(model_name, images, labels, devices, training, output_dir);
 }
 
 void vgg(const string version, const int batchsize, const int training,
          const string devices, const string output_dir) {
-  string model_name, images, labels, schedule_file;
+  string model_name, images, labels;
   model_name = "vgg" + version + "-7_bs" + to_string(batchsize);
   images = "../data/datasets/imagenet_test/images-idx4-ubyte";
   labels = "../data/datasets/imagenet_test/labels-idx1-short";
-  if (training) {
-    schedule_file = "../data/schedules/vgg" + version + "-7_train_schedule.txt";
-  } else {
-    schedule_file = "../data/schedules/vgg" + version + "-7_inf_schedule.txt";
-  }
-  execute_network(model_name, images, labels, schedule_file, devices, training,
-                  output_dir);
+  execute_network(model_name, images, labels, devices, training, output_dir);
 }
 
 void resnet(const string version, const int batchsize, const int training,
             const string devices, const string output_dir) {
-  string model_name, images, labels, schedule_file;
+  string model_name, images, labels;
   model_name = "resnet" + version + "-v1-7_bs" + to_string(batchsize);
   images = "../data/datasets/imagenet_test/images-idx4-ubyte";
   labels = "../data/datasets/imagenet_test/labels-idx1-short";
-  if (training) {
-    schedule_file =
-        "../data/schedules/resnet" + version + "-v1-7_train_schedule.txt";
-  } else {
-    schedule_file =
-        "../data/schedules/resnet" + version + "-v1-7_inf_schedule.txt";
-  }
-  execute_network(model_name, images, labels, schedule_file, devices, training,
-                  output_dir);
+  execute_network(model_name, images, labels, devices, training, output_dir);
 }
 
 void googlenet(const int batchsize, const int training, const string devices,
                const string output_dir) {
-  string model_name, images, labels, schedule_file;
+  string model_name, images, labels;
   model_name = "googlenet-7_bs" + to_string(batchsize);
   images = "../data/datasets/imagenet_test/images-idx4-ubyte";
   labels = "../data/datasets/imagenet_test/labels-idx1-short";
-  if (training) {
-    schedule_file = "../data/schedules/googlenet_train_schedule.txt";
-  } else {
-    schedule_file = "../data/schedules/googlenet_inf_schedule.txt";
-  }
-  execute_network(model_name, images, labels, schedule_file, devices, training,
-                  output_dir);
+  execute_network(model_name, images, labels, devices, training, output_dir);
 }
 
 void unet(const int batchsize, const int training, const string devices,
           const string output_dir) {
-  string model_name, images, labels, schedule_file;
+  string model_name, images, labels;
   model_name = "unet";
   images = "";
   labels = "";
-  if (training) {
-    schedule_file = "../data/schedules/unet_train_schedule.txt";
-  } else {
-    schedule_file = "../data/schedules/unet_inf_schedule.txt";
-  }
-  execute_network(model_name, images, labels, schedule_file, devices, training,
-                  output_dir);
+  execute_network(model_name, images, labels, devices, training, output_dir);
 }
 
 int run(const string name, const int batchsize, const int training,
