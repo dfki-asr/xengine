@@ -13,9 +13,10 @@ using namespace dnnl;
 
 Network::Network(const string model_name, const string &model_path,
                  const string &devices_path, const int training,
-                 const int verbose)
+                 const string output_dir, const int verbose)
     : _model_name(model_name), _training(training), _schedule(nullptr),
-      _verbose(verbose), _measure_time(0), _benchmark_mode(0) {
+      _output_dir(output_dir), _verbose(verbose), _measure_time(0),
+      _benchmark_mode(0) {
   _mode = _training ? "training" : "inference";
   create_devices(_devices, devices_path);
   _default_device = _devices.begin()->first;

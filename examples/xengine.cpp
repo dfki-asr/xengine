@@ -15,10 +15,9 @@ void createOrRunSchedule(Network &net, const string &images,
   }
 }
 
-void runILPSolver(Network &net, const string &images, const string &labels,
-                  const string output_dir) {
+void runILPSolver(Network &net, const string &images, const string &labels) {
   const string output_filename =
-      output_dir + "/" + net.name() + "_" + net.mode();
+      net.output_directory() + "/" + net.name() + "_" + net.mode();
   const string mpsfile = output_filename + ".mps";
   const string logfile = output_filename + ".log";
   const int benchmark = 1;
@@ -30,10 +29,11 @@ void execute_network(const string &model_name, const string &images,
                      const int training, const string output_dir) {
   auto model = "../data/models/" + model_name + ".onnx";
   const int verbose = 1;
-  Network net = Network(model_name, model, devices, training, verbose);
+  Network net =
+      Network(model_name, model, devices, training, output_dir, verbose);
   net.init();
   createOrRunSchedule(net, images, labels);
-  runILPSolver(net, images, labels, output_dir);
+  runILPSolver(net, images, labels);
 }
 
 void lenet(const int batchsize, const int training, const string devices,

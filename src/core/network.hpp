@@ -13,10 +13,11 @@ class Network {
 public:
   Network(const string model_name, const string &model_path,
           const string &devices_path, const int training,
-          const int verbose = 0);
+          const string output_dir, const int verbose = 0);
   ~Network();
   string name() { return _model_name; }
   string mode() { return _mode; }
+  string output_directory() { return _output_dir; }
   void init();
   void run(const string &data_path, const string &label_path,
            const size_t num_iterations);
@@ -90,5 +91,6 @@ private:
   int _opsToKeep;
   string _mode;
   string _model_name;
+  string _output_dir;
 };
 #endif
