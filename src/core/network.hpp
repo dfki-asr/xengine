@@ -53,6 +53,7 @@ private:
                          string &best_schedule);
   float _getTimeOfOp(const int opID, const string prefix,
                      const string time_type);
+  void _computeMatrix2Schedule(matrix &R, const string &schedulefile);
   void _writeScheduleFile(const string &schedulefile);
   void _setSchedule(const string &schedulefile);
   void _unsetSchedule();

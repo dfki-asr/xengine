@@ -157,6 +157,29 @@ void Network::benchmark(const string &data_path, const string &label_path) {
   _benchmark_mode = 0;
 }
 
+void Network::_computeMatrix2Schedule(matrix &R, const string &schedulefile) {
+  // This only computes a very dumb schedule (only frontier advancing stage, no
+  // recomputes)
+  string best_schedule;
+  for (size_t opID = 0; opID < _operators.size(); opID++) {
+    string device_name = R.at(0, opID, opID) == 1 ? "cpu_0" : "gpu_0";
+    best_schedule += _operators.at(opID)->type + ";" + device_name + ";0;any\n";
+  }
+  if (_training) {
+    for (size_t i = 0; i < _operators.size(); i++) {
+      auto opID = _operators.size() - i - 1;
+      auto schedID = _operators.size() + i;
+      string device_name = R.at(0, schedID, schedID) == 1 ? "cpu_0" : "gpu_0";
+      best_schedule +=
+          _operators.at(opID)->type + ";" + device_name + ";0;any\n";
+    }
+  }
+  if (_verbose > 0) {
+    cout << "Best schedule: \n" << best_schedule << endl;
+  }
+  writeString2File(schedulefile, best_schedule);
+}
+
 void Network::_writeScheduleFile(const string &schedulefile) {
   string best_schedule;
   for (size_t opID = 0; opID < _operators.size(); opID++) {
@@ -328,6 +351,12 @@ void Network::solveILP(const string mpsfile, const string logfile,
   ilp->solve();
   ilp->printResults();
   matrix R = ilp->get_R();
+  string budget_str =
+      to_string(static_cast<int>(budget[0] / 1024.0 / 1024.0)) + "MB_" +
+      to_string(static_cast<int>(budget[1] / 1024.0 / 1024.0)) + "MB";
+  string schedulefile = _output_dir + "/" + _model_name + "_" + _mode + "_" +
+                        budget_str + "_ilp_schedule.txt";
+  _computeMatrix2Schedule(R, schedulefile);
   matrix S = ilp->get_S();
   vector<double> results;
   results.push_back(ilp->get_minimal_compute_costs());
