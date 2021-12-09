@@ -29,7 +29,7 @@ Network::Network(const string model_name, const string &model_path,
     cout << endl
          << "********** " << _model_name << " *** " << _mode << " ********"
          << endl;
-    maxMemoryDemandInfo();
+    _maxMemoryDemandInfo();
   }
 }
 
@@ -64,7 +64,7 @@ void Network::init() {
   }
 }
 
-void Network::maxMemoryDemandInfo() {
+void Network::_maxMemoryDemandInfo() {
   float op_md = 0.0f;
   for (auto op : _operators) {
     op_md += op->getFwdMemoryConsumption();

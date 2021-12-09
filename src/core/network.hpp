@@ -34,7 +34,6 @@ public:
                 const string &data_path, const string &label_path,
                 const int benchmarkILP = 1);
   void solveILP(const string mpsfile, const string logfile);
-  void maxMemoryDemandInfo();
 
 private:
   void _Xpass(const int is_fwd_pass);
@@ -56,6 +55,7 @@ private:
   void _writeScheduleFile(const string &schedulefile);
   void _setSchedule(const string &schedulefile);
   void _unsetSchedule();
+  void _maxMemoryDemandInfo();
   int _getOpIndexFromName(const string opName);
   int _getDevIndexFromName(const string devName);
   vector<string> _selectDevicePerOp(vector<string> dev_names,
