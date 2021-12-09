@@ -707,6 +707,7 @@ void Network::_Xpass(const int is_fwd_pass) {
     auto e = _getExecuteOperator(schedID);
     auto out_tag = e.outputTag.to_dnnl();
     float avg_time = 0.0f;
+    string time_type = "total";
     packaged_task<float(int, shared_ptr<Operator>, shared_ptr<Device>,
                         unordered_map<std::string, shared_ptr<Tensor>>,
                         memory::format_tag, int)>
@@ -716,8 +717,17 @@ void Network::_Xpass(const int is_fwd_pass) {
                _devices[e.engineID], _tensors, out_tag, _verbose);
     if (future.wait_for(10s) != future_status::timeout) {
       thr.join();
+      // avg_time: average time in ms over last X executions
       avg_time = future.get();
-      avg_times.push_back(avg_time);
+      string prefix = schedID < _operators.size() ? "fwd_" : "bwd_";
+      // opTime:   time in ms of Xth (last) operator execution
+      _default_device = _devices[e.engineID]->name;
+      float opTime = _getTimeOfOp(opID, prefix, time_type);
+      if (_verbose > 1) {
+        cout << _operators.at(opID)->type << ": " << opTime << " vs. "
+             << avg_time << " on dev " << _default_device << endl;
+      }
+      avg_times.push_back(opTime);
     } else {
       thr.detach();
       thr.~thread();
