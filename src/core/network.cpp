@@ -66,8 +66,8 @@ void Network::init() {
 
 void Network::maxMemoryDemandInfo() {
   float op_md = 0.0f;
-  for (size_t opID = 0; opID < _operators.size(); opID++) {
-    op_md += _operators.at(opID)->getFwdMemoryConsumption();
+  for (auto op : _operators) {
+    op_md += op->getFwdMemoryConsumption();
   }
   if (_training) {
     for (size_t i = 0; i < _operators.size(); i++) {
@@ -117,9 +117,9 @@ void Network::run(const string &data_path, const string &label_path,
 }
 
 void Network::_reset_op_primitives() {
-  for (auto i = 0; i < _operators.size(); i++) {
-    _operators.at(i)->reset_fwd_primitives();
-    _operators.at(i)->reset_bwd_primitives();
+  for (auto op : _operators) {
+    op->reset_fwd_primitives();
+    op->reset_bwd_primitives();
   }
 }
 
@@ -1003,12 +1003,13 @@ void Network::_fillInputTensors(const string &data_path,
 
 float Network::_getTimeOfOp(const int opID, const string prefix,
                             const string time_type) {
-  auto timings = _operators.at(opID)->timings;
+  auto op = _operators.at(opID);
+  auto timings = op->timings;
   auto e = _getExecuteOperator(opID);
   auto time_name = prefix + e.engineID;
   float time = timings[time_name][time_type];
   if (_verbose > 1) {
-    string s = _operators.at(opID)->name + "\n: ";
+    string s = op->name + "\n: ";
     for (auto &it : timings[time_name]) {
       s += to_string(it.second) + " ms (" + it.first + ")  ";
     }
