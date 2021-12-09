@@ -17,11 +17,5 @@ public:
                  const int verbose = 0);
   ~ILP_Solver_GRB();
   int solve();
-
-private:
-  GRBLinExpr _num_hazards(const size_t t, const size_t d, const size_t i,
-                          const size_t k, GRBVar *R, GRBVar *S);
-
-  int defineProblem();
 };
 #endif
