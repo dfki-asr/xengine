@@ -108,8 +108,7 @@ void Network::_unsetSchedule() {
 void Network::runSchedule(const string &schedulefile, const string &images,
                           const string &labels, const size_t num_iterations) {
   if (_verbose > 0) {
-    cout << "Run schedule file " << schedulefile << " ... (simple optimizer)"
-         << endl;
+    cout << "Run schedule file " << schedulefile << endl;
   }
   _setSchedule(schedulefile);
   run(images, labels, num_iterations);
@@ -118,8 +117,7 @@ void Network::runSchedule(const string &schedulefile, const string &images,
 void Network::createSchedule(const string &schedulefile, const string &images,
                              const string &labels) {
   if (_verbose > 0) {
-    cout << "Create schedule file " << schedulefile << " ... (simple optimizer)"
-         << endl;
+    cout << "Create schedule file " << schedulefile << endl;
   }
   benchmark(images, labels);
   _writeScheduleFile(schedulefile);
