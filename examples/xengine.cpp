@@ -15,24 +15,25 @@ void createOrRunSchedule(Network &net, const string &images,
   }
 }
 
+void runILPSolver(Network &net, const string &images, const string &labels,
+                  const string output_dir) {
+  const string output_filename =
+      output_dir + "/" + net.name() + "_" + net.mode();
+  const string mpsfile = output_filename + ".mps";
+  const string logfile = output_filename + ".log";
+  const int benchmark = 1;
+  net.solveILP(mpsfile, logfile, images, labels, benchmark);
+}
+
 void execute_network(const string &model_name, const string &images,
                      const string &labels, const string &devices,
                      const int training, const string output_dir) {
   auto model = "../data/models/" + model_name + ".onnx";
   const int verbose = 1;
-  const size_t num_iterations = 1;
   Network net = Network(model_name, model, devices, training, verbose);
   net.init();
   createOrRunSchedule(net, images, labels);
-  if (verbose > 0) {
-    cout << "ILP optimizer ..." << endl;
-  }
-  const string mode = training ? "training" : "inference";
-  const string output_filename = output_dir + "/" + model_name + "_" + mode;
-  const string mpsfile = output_filename + ".mps";
-  const string logfile = output_filename + ".log";
-  const int benchmarkILP = 1;
-  net.solveILP(mpsfile, logfile, images, labels, benchmarkILP);
+  runILPSolver(net, images, labels, output_dir);
 }
 
 void lenet(const int batchsize, const int training, const string devices,

@@ -339,6 +339,9 @@ void Network::solveILP(const string mpsfile, const string logfile,
 void Network::solveILP(const string mpsfile, const string logfile,
                        const string &data_path, const string &label_path,
                        const int benchmarkILP) {
+  if (_verbose > 0) {
+    cout << "ILP optimizer ..." << endl;
+  }
   auto compute_costs_per_op = vector<vector<float>>();
   auto edges = vector<pair<string, edge>>();
   auto memory_per_op = vector<float>();
