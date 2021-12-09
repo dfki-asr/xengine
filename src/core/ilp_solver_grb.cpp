@@ -258,7 +258,7 @@ int ILP_Solver_GRB::defineProblem() {
 int ILP_Solver_GRB::solve() {
   ifstream f(_mpsfile);
   if (!f.is_open()) {
-    defineProblem();
+    defineProblemAsMPS();
   }
   try {
     GRBEnv env = GRBEnv(true);
