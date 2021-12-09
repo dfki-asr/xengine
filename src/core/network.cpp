@@ -656,22 +656,25 @@ void Network::_Xpass(const int is_fwd_pass) {
     auto e = _getExecuteOperator(schedID);
     auto out_tag = e.outputTag.to_dnnl();
     float avg_time = 0.0f;
-    std::packaged_task<float(int, shared_ptr<Operator>, shared_ptr<Device>,
-                             unordered_map<std::string, shared_ptr<Tensor>>,
-                             memory::format_tag, int)>
+    packaged_task<float(int, shared_ptr<Operator>, shared_ptr<Device>,
+                        unordered_map<std::string, shared_ptr<Tensor>>,
+                        memory::format_tag, int)>
         task(runOP);
     auto future = task.get_future();
-    std::thread thr(std::move(task), is_fwd_pass, _operators.at(opID),
-                    _devices[e.engineID], _tensors, out_tag, _verbose);
-    if (future.wait_for(10s) != std::future_status::timeout) {
+    thread thr(move(task), is_fwd_pass, _operators.at(opID),
+               _devices[e.engineID], _tensors, out_tag, _verbose);
+    if (future.wait_for(10s) != future_status::timeout) {
       thr.join();
-      avg_time = future.get(); // this will propagate exception from f() if any
+      avg_time = future.get();
+      avg_times.push_back(avg_time);
     } else {
-      thr.detach(); // we leave the thread still running
-      throw std::runtime_error("Timeout in operator " +
-                               _operators.at(opID)->name + "_" + mode);
+      thr.detach();
+      thr.~thread();
+      cout << "Timeout in operator " << _operators.at(opID)->name << "_" << mode
+           << " --> skip!" << endl;
+      _operators.at(opID)->timings[mode + "_" + e.engineID]["total"] = FLT_MAX;
+      _operators.at(opID)->timings[mode + "_" + e.engineID]["exe"] = FLT_MAX;
     }
-    avg_times.push_back(avg_time);
   }
   float total_avg = accumulate(avg_times.begin(), avg_times.end(), 0.0);
   if (_verbose > 0) {
