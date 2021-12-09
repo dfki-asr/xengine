@@ -25,9 +25,6 @@ public:
                       const string &labels);
   void runSchedule(const string &schedulefile, const string &images,
                    const string &labels, const size_t num_iterations);
-  void writeScheduleFile(const string &schedulefile);
-  void setSchedule(const string &schedulefile);
-  void unsetSchedule();
   void solveILP(const string mpsfile, const string logfile,
                 vector<pair<string, edge>> &edges, vector<string> &dev_names,
                 vector<vector<float>> &compute_costs_per_op,
@@ -56,6 +53,9 @@ private:
                          string &best_schedule);
   float _getTimeOfOp(const int opID, const string prefix,
                      const string time_type);
+  void _writeScheduleFile(const string &schedulefile);
+  void _setSchedule(const string &schedulefile);
+  void _unsetSchedule();
   int _getOpIndexFromName(const string opName);
   int _getDevIndexFromName(const string devName);
   vector<string> _selectDevicePerOp(vector<string> dev_names,

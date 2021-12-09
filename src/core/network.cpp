@@ -49,7 +49,7 @@ Network::~Network() {
   }
   _devices.clear();
   _operator_names.clear();
-  unsetSchedule();
+  _unsetSchedule();
 }
 
 void Network::init() {
@@ -91,12 +91,12 @@ void Network::maxMemoryDemandInfo() {
        << to_string(tensor_md) << " MB." << endl;
 }
 
-void Network::setSchedule(const string &schedulefile) {
-  unsetSchedule();
+void Network::_setSchedule(const string &schedulefile) {
+  _unsetSchedule();
   _schedule = move(make_unique<Schedule>(schedulefile));
 }
 
-void Network::unsetSchedule() {
+void Network::_unsetSchedule() {
   if (_schedule != nullptr) {
     _schedule.reset();
     _schedule.release();
@@ -110,7 +110,7 @@ void Network::runSchedule(const string &schedulefile, const string &images,
     cout << "Run schedule file " << schedulefile << " ... (simple optimizer)"
          << endl;
   }
-  setSchedule(schedulefile);
+  _setSchedule(schedulefile);
   run(images, labels, num_iterations);
 }
 
@@ -121,7 +121,7 @@ void Network::createSchedule(const string &schedulefile, const string &images,
          << endl;
   }
   benchmark(images, labels);
-  writeScheduleFile(schedulefile);
+  _writeScheduleFile(schedulefile);
 }
 
 void Network::run(const string &data_path, const string &label_path,
@@ -145,7 +145,7 @@ void Network::_reset_op_primitives() {
 
 void Network::benchmark(const string &data_path, const string &label_path) {
   // be sure to ignore any schedule
-  unsetSchedule();
+  _unsetSchedule();
   _benchmark_mode = 1;
   // measure performance on all devices
   for (auto dev = _devices.begin(); dev != _devices.end(); dev++) {
@@ -158,7 +158,7 @@ void Network::benchmark(const string &data_path, const string &label_path) {
   _benchmark_mode = 0;
 }
 
-void Network::writeScheduleFile(const string &schedulefile) {
+void Network::_writeScheduleFile(const string &schedulefile) {
   string best_schedule;
   for (size_t opID = 0; opID < _operators.size(); opID++) {
     _scheduleOperator(opID, "fwd_", best_schedule);
@@ -280,7 +280,7 @@ void Network::_fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
     }
   }
   writeString2File(schedulefile, sched);
-  setSchedule(schedulefile);
+  _setSchedule(schedulefile);
   // Execute
   _forward();
   if (_training) {
