@@ -721,16 +721,18 @@ void Network::_Xpass(const int is_fwd_pass) {
     if (future.wait_for(10s) != future_status::timeout) {
       thr.join();
       // avg_time: average time in ms over last X executions
-      avg_time = future.get();
-      string prefix = schedID < _operators.size() ? "fwd_" : "bwd_";
-      // opTime:   time in ms of Xth (last) operator execution
-      _default_device = _devices[e.engineID]->name;
-      float opTime = _getTimeOfOp(opID, prefix, time_type);
-      if (_verbose > 1) {
-        cout << _operators.at(opID)->type << ": " << opTime << " vs. "
-             << avg_time << " on dev " << _default_device << endl;
+      if (future.valid()) {
+        avg_time = future.get();
+        string prefix = schedID < _operators.size() ? "fwd_" : "bwd_";
+        // opTime:   time in ms of Xth (last) operator execution
+        _default_device = _devices[e.engineID]->name;
+        float opTime = _getTimeOfOp(opID, prefix, time_type);
+        if (_verbose > 1) {
+          cout << _operators.at(opID)->type << ": " << opTime << " vs. "
+               << avg_time << " on dev " << _default_device << endl;
+        }
+        avg_times.push_back(opTime);
       }
-      avg_times.push_back(opTime);
     } else {
       thr.detach();
       throw std::runtime_error("Timeout in operator " +
