@@ -31,13 +31,13 @@ public:
 
   void reinit(memory::desc d) {
     if (_mem == nullptr) {
-      _mem = make_unique<memory>(make_memory(d, _eng));
+      _mem = make_unique<memory>(move(make_memory(d, _eng)));
       _desc = d;
       _dims = d.dims();
       _size_in_bytes = d.get_size();
     } else {
       release();
-      _mem = make_unique<memory>(make_memory(d, _eng));
+      _mem = make_unique<memory>(move(make_memory(d, _eng)));
       _desc = d;
       _dims = d.dims();
       _size_in_bytes = d.get_size();
@@ -45,9 +45,10 @@ public:
   }
 
   void init(memory::desc d, engine &e) {
-    if (_mem != nullptr)
+    if (_mem != nullptr) {
       release();
-    _mem = make_unique<memory>(make_memory(d, e));
+    }
+    _mem = make_unique<memory>(move(make_memory(d, e)));
     _desc = d;
     _eng = _mem->get_engine();
     _dims = d.dims();
@@ -99,7 +100,7 @@ public:
     }
     dnnl::engine eng = mem.get_engine();
     size_t size = mem.get_desc().get_size() / sizeof(g_data_type);
-    _mem = make_unique<memory>(make_memory(mem.get_desc(), eng));
+    _mem = make_unique<memory>(move(make_memory(mem.get_desc(), eng)));
     _eng = _mem->get_engine();
     _size_in_bytes = mem.get_desc().get_size();
 #ifdef DNNL_WITH_SYCL
@@ -179,7 +180,7 @@ public:
       auto eng = _mem->get_engine();
       release();
       _mem = make_unique<memory>(
-          make_memory(memory::desc(d, g_data_type, tag), eng));
+          move(make_memory(memory::desc(d, g_data_type, tag), eng)));
       _size_in_bytes = _mem->get_desc().get_size();
     }
   }
