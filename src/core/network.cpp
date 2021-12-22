@@ -718,7 +718,7 @@ void Network::_Xpass(const int is_fwd_pass) {
     thread thr(move(task), is_fwd_pass, std::ref(_operators.at(opID)),
                std::ref(_devices[e.engineID]), std::ref(_tensors), out_tag,
                _verbose);
-    if (future.wait_for(10s) != future_status::timeout) {
+    if (future.wait_for(50s) != future_status::timeout) {
       thr.join();
       // avg_time: average time in ms over last X executions
       if (future.valid()) {
