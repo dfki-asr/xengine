@@ -609,8 +609,8 @@ void Network::_backward() {
   _Xpass(is_fwd_pass);
 }
 
-float runOP(int is_fwd_pass, shared_ptr<Operator> op, shared_ptr<Device> dev,
-            unordered_map<std::string, shared_ptr<Tensor>> tensors,
+float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
+            unordered_map<std::string, shared_ptr<Tensor>> &tensors,
             memory::format_tag out_tag, int verbose) {
   size_t num_executions = 10;
   size_t warmup_iterations = 5;
@@ -710,13 +710,14 @@ void Network::_Xpass(const int is_fwd_pass) {
     auto out_tag = e.outputTag.to_dnnl();
     float avg_time = 0.0f;
     string time_type = "total";
-    packaged_task<float(int, shared_ptr<Operator>, shared_ptr<Device>,
-                        unordered_map<std::string, shared_ptr<Tensor>>,
+    packaged_task<float(int, shared_ptr<Operator> &, shared_ptr<Device> &,
+                        unordered_map<std::string, shared_ptr<Tensor>> &,
                         memory::format_tag, int)>
         task(runOP);
     auto future = task.get_future();
-    thread thr(move(task), is_fwd_pass, _operators.at(opID),
-               _devices[e.engineID], _tensors, out_tag, _verbose);
+    thread thr(move(task), is_fwd_pass, std::ref(_operators.at(opID)),
+               std::ref(_devices[e.engineID]), std::ref(_tensors), out_tag,
+               _verbose);
     if (future.wait_for(10s) != future_status::timeout) {
       thr.join();
       // avg_time: average time in ms over last X executions
