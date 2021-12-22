@@ -24,14 +24,21 @@ void runILPSolver(Network &net, const string &images, const string &labels) {
   net.solveILP(mpsfile, logfile, images, labels, benchmark);
 }
 
-void execute_network(const string &model_name, const string &images,
-                     const string &labels, const string &devices,
-                     const int training, const string output_dir) {
+void execute_network(const string &model_name, string &images, string &labels,
+                     const string &devices, const int training,
+                     const string output_dir) {
   auto model = "../data/models/" + model_name + ".onnx";
   const int verbose = 1;
   Network net =
       Network(model_name, model, devices, training, output_dir, verbose);
   net.init();
+  if (!filesystem::exists(images) || !filesystem::exists(labels)) {
+    images = "";
+    labels = "";
+    cout << "WARNING: no real image and label data available - using dummy "
+            "data instead!"
+         << endl;
+  }
   createOrRunSchedule(net, images, labels);
   runILPSolver(net, images, labels);
 }
