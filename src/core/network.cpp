@@ -1017,9 +1017,8 @@ void Network::_fillModelParameters() {
     } else {
       throw runtime_error("Could not initialize " + name);
     }
-    auto tensor_memory_cpu = make_memory(desc, _devices["cpu_0"]->get_engine(),
-                                         static_cast<void *>(raw_data));
-    _tensors[name]->set_memory(tensor_memory_cpu);
+    _tensors[name]->set_memory(move(make_memory(
+        desc, _devices["cpu_0"]->get_engine(), static_cast<void *>(raw_data))));
     _tensors[name]->producer = "external";
   }
 }
@@ -1057,14 +1056,11 @@ void Network::_fillInputTensors(const string &data_path,
     generate(v_l.begin(), v_l.end(), _rand_float);
   }
   float *buffer = v_in.data();
-  auto tensor_in_cpu = make_memory(in_desc, _devices["cpu_0"]->get_engine(),
-                                   static_cast<void *>(buffer));
-  auto tensor_l_cpu = make_memory(l_desc, _devices["cpu_0"]->get_engine(),
-                                  static_cast<void *>(v_l.data()));
-  _tensors[data_tensor_name]->release();
-  _tensors[data_tensor_name]->set_memory(move(tensor_in_cpu));
-  _tensors[labels_name]->release();
-  _tensors[labels_name]->set_memory(move(tensor_l_cpu));
+  _tensors[data_tensor_name]->set_memory(move(make_memory(
+      in_desc, _devices["cpu_0"]->get_engine(), static_cast<void *>(buffer))));
+  _tensors[labels_name]->set_memory(
+      move(make_memory(l_desc, _devices["cpu_0"]->get_engine(),
+                       static_cast<void *>(v_l.data()))));
 }
 
 float Network::_getTimeOfOp(const int opID, const string prefix,
