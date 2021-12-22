@@ -644,18 +644,20 @@ void Network::_Xpass(const int is_fwd_pass) {
   vector<float> avg_times = vector<float>();
   size_t opID, schedID;
   int releaseOpID, releaseSchedID;
-  vector<string> inputs, outputs;
+  vector<string> inputs, outputs, release_outputs;
   string mode;
   for (size_t j = 0; j < _operators.size(); j++) {
     if (is_fwd_pass) {
       opID = j;
       schedID = j;
       inputs = _operators.at(opID)->_f_op.input;
+      outputs = _operators.at(opID)->_f_op.output;
       mode = "fwd";
     } else {
       opID = _operators.size() - j - 1;
       schedID = _operators.size() + j;
       inputs = _operators.at(opID)->_b_op.input;
+      outputs = _operators.at(opID)->_b_op.output;
       mode = "bwd";
     }
     if (_verbose > 1) {
@@ -669,11 +671,11 @@ void Network::_Xpass(const int is_fwd_pass) {
       if (is_fwd_pass) {
         releaseOpID = opID - 2;
         releaseSchedID = releaseOpID;
-        outputs = _operators.at(releaseOpID)->_f_op.output;
+        release_outputs = _operators.at(releaseOpID)->_f_op.output;
         if (_verbose > 1) {
           cout << "free " << to_string(releaseOpID) << " fwd" << endl;
         }
-        _maybe_release_outputs(outputs);
+        _maybe_release_outputs(release_outputs);
         _maybe_release_op(releaseOpID, releaseSchedID);
       } else {
         releaseSchedID = schedID - 2;
@@ -682,22 +684,22 @@ void Network::_Xpass(const int is_fwd_pass) {
           if (_verbose > 1) {
             cout << "free " << to_string(releaseOpID) << " bwd" << endl;
           }
-          outputs = _operators.at(releaseOpID)->_b_op.output;
-          _maybe_release_outputs(outputs);
+          release_outputs = _operators.at(releaseOpID)->_b_op.output;
+          _maybe_release_outputs(release_outputs);
           _maybe_release_op(releaseOpID, releaseSchedID);
           if (_verbose > 1) {
             cout << "free " << to_string(releaseOpID) << " fwd" << endl;
           }
-          outputs = _operators.at(releaseOpID)->_f_op.output;
-          _maybe_release_outputs(outputs);
+          release_outputs = _operators.at(releaseOpID)->_f_op.output;
+          _maybe_release_outputs(release_outputs);
           _maybe_release_op(releaseOpID, releaseSchedID);
         } else {
           releaseOpID = releaseSchedID;
           if (_verbose > 1) {
             cout << "free " << to_string(releaseOpID) << " fwd" << endl;
           }
-          outputs = _operators.at(releaseOpID)->_f_op.output;
-          _maybe_release_outputs(outputs);
+          release_outputs = _operators.at(releaseOpID)->_f_op.output;
+          _maybe_release_outputs(release_outputs);
           _maybe_release_op(releaseOpID, releaseSchedID);
         }
       }
