@@ -730,11 +730,8 @@ void Network::_Xpass(const int is_fwd_pass) {
       avg_times.push_back(opTime);
     } else {
       thr.detach();
-      thr.~thread();
-      cout << "Timeout in operator " << _operators.at(opID)->name << "_" << mode
-           << " --> skip!" << endl;
-      _operators.at(opID)->timings[mode + "_" + e.engineID]["total"] = FLT_MAX;
-      _operators.at(opID)->timings[mode + "_" + e.engineID]["exe"] = FLT_MAX;
+      throw std::runtime_error("Timeout in operator " +
+                               _operators.at(opID)->name + "_" + mode + "!");
     }
   }
   float total_avg = accumulate(avg_times.begin(), avg_times.end(), 0.0);
