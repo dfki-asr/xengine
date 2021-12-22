@@ -11,7 +11,7 @@ find_library (DNNL_LIBRARY dnnl HINTS "${DNNL_ROOT_DIR}/lib/" "${DNNL_ROOT_DIR}/
 
 set (ONEAPI_ROOT_DIR CACHE PATH "Intel oneAPI Base Toolkit directory")
 set (ONEAPI_PREFIX "${ONEAPI_ROOT_DIR}/compiler/latest/linux/")
-set (SYCL_INCLUDE_DIR "${ONEAPI_PREFIX}/include/sycl/")
+set (SYCL_INCLUDE_DIR "${ONEAPI_PREFIX}/include")
 find_library (SYCL_LIBRARY sycl HINTS "${ONEAPI_PREFIX}/lib" "${ONEAPI_PREFIX}/lib64")
 
 option(HAS_CBC "Compile xengine with CBC support." OFF)
