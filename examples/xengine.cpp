@@ -31,7 +31,6 @@ void execute_network(const string &model_name, string &images, string &labels,
   const int verbose = 1;
   Network net =
       Network(model_name, model, devices, training, output_dir, verbose);
-  net.init();
   if (!filesystem::exists(images) || !filesystem::exists(labels)) {
     images = "";
     labels = "";

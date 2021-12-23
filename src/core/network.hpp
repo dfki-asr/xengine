@@ -18,7 +18,6 @@ public:
   string name() { return _model_name; }
   string mode() { return _mode; }
   string output_directory() { return _output_dir; }
-  void init();
   void run(const string &data_path, const string &label_path,
            const size_t num_iterations);
   void benchmark(const string &data_path, const string &label_path);
@@ -40,12 +39,14 @@ private:
   void _Xpass(const int is_fwd_pass);
   void _forward();
   void _backward();
-  void _preprocessModel(unordered_map<string, vector<string>> &inputs,
+  void _preprocessModel(onnx::ModelProto &model,
+                        unordered_map<string, vector<string>> &inputs,
                         unordered_map<string, vector<string>> &outputs);
-  void _initOperators(unordered_map<string, vector<string>> &inputs,
+  void _initOperators(onnx::ModelProto &model,
+                      unordered_map<string, vector<string>> &inputs,
                       unordered_map<string, vector<string>> &outputs);
   void _insertSoftmax();
-  void _fillModelParameters();
+  void _fillModelParameters(onnx::ModelProto &model);
   void _fillInputTensors(const string &data_path, const string &label_path,
                          const size_t &batch);
   ExecuteOperator _getExecuteOperator(const int ID);
@@ -76,7 +77,6 @@ private:
   void _maybe_release_op(const int opID, const int schedID);
   void _reset_op_primitives();
 
-  onnx::ModelProto _model;
   vector<string> _operator_names;
   map<string, shared_ptr<Device>> _devices;
   unordered_map<string, shared_ptr<Tensor>> _tensors;

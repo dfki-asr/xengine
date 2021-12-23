@@ -20,17 +20,26 @@ Network::Network(const string model_name, const string &model_path,
   _mode = _training ? "training" : "inference";
   create_devices(_devices, devices_path);
   _default_device = _devices.begin()->first;
-  _model = load_model(model_path);
-  _tensors = get_tensors(_model);
+  onnx::ModelProto model = load_model(model_path);
+  _tensors = get_tensors(model);
   unordered_map<string, vector<string>> inputs, outputs;
-  _preprocessModel(inputs, outputs);
-  _initOperators(inputs, outputs);
+  _preprocessModel(model, inputs, outputs);
   _opsToKeep = 1;
+  _initOperators(model, inputs, outputs);
   if (_verbose > 0) {
     cout << endl
          << "********** " << _model_name << " *** " << _mode << " ********"
          << endl;
     _maxMemoryDemandInfo();
+  }
+  auto begin = get_time();
+  _fillModelParameters(model);
+  const auto data_tensor_name = model.graph().input()[0].name();
+  const auto labels_name = "labels";
+  _tensors[data_tensor_name]->producer = "external";
+  _tensors[labels_name]->producer = "external";
+  if (_verbose > 0) {
+    cout << "init took " << (get_elapsed_ms(begin)) << " ms." << endl;
   }
 }
 
@@ -51,18 +60,6 @@ Network::~Network() {
   _devices.clear();
   _operator_names.clear();
   _unsetSchedule();
-}
-
-void Network::init() {
-  auto begin = get_time();
-  _fillModelParameters();
-  const auto data_tensor_name = _model.graph().input()[0].name();
-  const auto labels_name = "labels";
-  _tensors[data_tensor_name]->producer = "external";
-  _tensors[labels_name]->producer = "external";
-  if (_verbose > 0) {
-    cout << "init took " << (get_elapsed_ms(begin)) << " ms." << endl;
-  }
 }
 
 void Network::_maxMemoryDemandInfo() {
@@ -793,9 +790,10 @@ void Network::_insertSoftmax() {
   _operator_names.push_back(name);
 }
 
-void Network::_preprocessModel(unordered_map<string, vector<string>> &inputs,
+void Network::_preprocessModel(onnx::ModelProto &model,
+                               unordered_map<string, vector<string>> &inputs,
                                unordered_map<string, vector<string>> &outputs) {
-  const auto nodes = _model.graph().node();
+  const auto nodes = model.graph().node();
   for (const auto &node : nodes) {
     const auto name = node.name();
     inputs[name] = get_string_vector_from_proto(node.input());
@@ -889,9 +887,10 @@ void Network::_preprocessModel(unordered_map<string, vector<string>> &inputs,
   }
 }
 
-void Network::_initOperators(unordered_map<string, vector<string>> &inputs,
+void Network::_initOperators(onnx::ModelProto &model,
+                             unordered_map<string, vector<string>> &inputs,
                              unordered_map<string, vector<string>> &outputs) {
-  for (const auto &node : _model.graph().node()) {
+  for (const auto &node : model.graph().node()) {
     const auto name = node.name();
     if (name.empty()) {
       throw runtime_error("operator without name encountered!");
@@ -1003,8 +1002,8 @@ void Network::_initOperators(unordered_map<string, vector<string>> &inputs,
   }
 }
 
-void Network::_fillModelParameters() {
-  const auto initializers = _model.graph().initializer();
+void Network::_fillModelParameters(onnx::ModelProto &model) {
+  const auto initializers = model.graph().initializer();
   for (const auto &onnx_info : initializers) {
     if (onnx_info.data_type() != 1) {
       cout << onnx_info.name() << " has unsupported data type "
@@ -1037,7 +1036,7 @@ void Network::_fillModelParameters() {
 
 void Network::_fillInputTensors(const string &data_path,
                                 const string &label_path, const size_t &batch) {
-  const auto data_tensor_name = _model.graph().input()[0].name();
+  const auto data_tensor_name = _operators.at(0)->input[0];
   const auto labels_name = "labels";
   auto in_dims = _tensors[data_tensor_name]->dims();
   auto in_desc =
