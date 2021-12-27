@@ -29,20 +29,7 @@ public:
     }
   }
 
-  void reinit(memory::desc d) {
-    if (_mem == nullptr) {
-      _mem = make_unique<memory>(move(make_memory(d, _eng)));
-      _desc = d;
-      _dims = d.dims();
-      _size_in_bytes = d.get_size();
-    } else {
-      release();
-      _mem = make_unique<memory>(move(make_memory(d, _eng)));
-      _desc = d;
-      _dims = d.dims();
-      _size_in_bytes = d.get_size();
-    }
-  }
+  void reinit(memory::desc d) { init(d, _eng); }
 
   void init(memory::desc d, engine &e) {
     if (_mem != nullptr) {
