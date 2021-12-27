@@ -66,7 +66,7 @@ public:
       tensors[i]->add_consumer(_f_op.name);
     }
     for (auto i : _f_op.output) {
-      tensors[i]->producer = _f_op.name;
+      tensors[i]->set_producer(_f_op.name);
       _f_op.memory_consumption +=
           product(tensors[i]->dims()) * sizeof(g_data_type);
     }
@@ -79,7 +79,7 @@ public:
       }
       for (auto i : _b_op.output) {
         if (tensors.find(i) != tensors.end()) {
-          tensors[i]->producer = _b_op.name;
+          tensors[i]->set_producer(_b_op.name);
           _b_op.memory_consumption +=
               product(tensors[i]->dims()) * sizeof(g_data_type);
         }

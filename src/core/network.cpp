@@ -36,8 +36,8 @@ Network::Network(const string model_name, const string &model_path,
   _fillModelParameters(model);
   const auto data_tensor_name = model.graph().input()[0].name();
   const auto labels_name = "labels";
-  _tensors[data_tensor_name]->producer = "external";
-  _tensors[labels_name]->producer = "external";
+  _tensors[data_tensor_name]->set_producer("external");
+  _tensors[labels_name]->set_producer("external");
   if (_verbose > 0) {
     cout << "init took " << (get_elapsed_ms(begin)) << " ms." << endl;
   }
@@ -250,7 +250,7 @@ void Network::_collectConsumerCopyCosts(const int opID, const int d,
                                         vector<pair<string, edge>> &edges,
                                         matrix &copy_costs) {
   for (auto output : outputs) {
-    for (auto consumer : _tensors[output]->consumers) {
+    for (auto consumer : _tensors[output]->consumers()) {
       if (consumer == "external") {
         continue;
       }
@@ -267,7 +267,7 @@ void Network::_collectConsumerCopyCosts(const int opID, const int d,
         prefix = "bwd_";
       }
       auto timings = _operators.at(consumerOpID)->timings;
-      auto producer = _tensors[output]->producer;
+      auto producer = _tensors[output]->producer();
       const size_t src_idx = _getOpIndexFromName(producer);
       const size_t dst_idx = consumerSchedID;
       const string edgeName = to_string(src_idx) + "->" + to_string(dst_idx);
@@ -387,8 +387,8 @@ void Network::solveILP(const string mpsfile, const string logfile,
   }
   // edges
   for (auto it = _tensors.begin(); it != _tensors.end(); it++) {
-    auto src = it->second->producer;
-    auto consumers = it->second->consumers;
+    auto src = it->second->producer();
+    auto consumers = it->second->consumers();
     for (auto dst : consumers) {
       if (src == "external" || dst == "external") {
         continue;
@@ -570,7 +570,7 @@ void Network::_maybe_provide_dummy_inputs(vector<string> &inputs) {
     for (auto i : inputs) {
       if (!_tensors[i]->is_initialized()) {
         if (_verbose > 1) {
-          cout << "reinit " << _tensors[i]->name << endl;
+          cout << "reinit " << _tensors[i]->name() << endl;
         }
         _tensors[i]->reinit(_tensors[i]->desc());
       }
@@ -770,11 +770,11 @@ void Network::_insertSoftmax() {
   const auto input_dims = _tensors[input_tensor]->dims();
   const int axis = input_dims.size() - 1;
   _tensors[out_name] = move(make_shared<Tensor>(out_name, input_dims));
-  _tensors[out_name]->producer = name;
+  _tensors[out_name]->set_producer(name);
   _tensors[out_name]->add_consumer("external");
   _tensors[loss_name] =
       move(make_shared<Tensor>(loss_name, _tensors[labels_name]->dims()));
-  _tensors[loss_name]->producer = name;
+  _tensors[loss_name]->set_producer(name);
   _tensors[loss_name]->add_consumer("external");
   _tensors[input_tensor]->add_consumer("fwd_" + name);
   _tensors[labels_name]->add_consumer("fwd_" + name);
@@ -782,7 +782,7 @@ void Network::_insertSoftmax() {
     auto out_diff_name = "diff_" + input_tensor;
     _tensors[out_diff_name] = move(
         make_shared<Tensor>(out_diff_name, _tensors[input_tensor]->dims()));
-    _tensors[out_diff_name]->producer = name;
+    _tensors[out_diff_name]->set_producer(name);
   }
   _operators.push_back(move(make_shared<SoftmaxWithLoss>(
       name, vector<string>({input_tensor, labels_name}),
@@ -853,7 +853,7 @@ void Network::_preprocessModel(onnx::ModelProto &model,
           move(make_shared<Tensor>(mask_name, _tensors[output[0]]->dims()));
     }
     for (auto tensor : output)
-      _tensors[tensor]->producer = fwd_prefix + name;
+      _tensors[tensor]->set_producer(fwd_prefix + name);
     for (auto tensor : input)
       _tensors[tensor]->add_consumer(fwd_prefix + name);
   }
@@ -867,7 +867,7 @@ void Network::_preprocessModel(onnx::ModelProto &model,
         auto ws_name = output_name + "_ws";
         _tensors[ws_name] =
             move(make_shared<Tensor>(ws_name, _tensors[output_name]->dims()));
-        _tensors[ws_name]->producer = fwd_prefix + name;
+        _tensors[ws_name]->set_producer(fwd_prefix + name);
       } else if (type == "BatchNormalization") {
         auto gamma_diff_name =
             "diff_" + inputs[name].at(1) + "_" + inputs[name].at(2);
@@ -875,13 +875,13 @@ void Network::_preprocessModel(onnx::ModelProto &model,
         auto gamma_dims = memory::dims({channels, channels});
         _tensors[gamma_diff_name] =
             move(make_shared<Tensor>(gamma_diff_name, gamma_dims));
-        _tensors[gamma_diff_name]->producer = bwd_prefix + name;
+        _tensors[gamma_diff_name]->set_producer(bwd_prefix + name);
       }
       for (auto tensor : inputs[name]) {
         auto out_diff_name = "diff_" + tensor;
         _tensors[out_diff_name] =
             move(make_shared<Tensor>(out_diff_name, _tensors[tensor]->dims()));
-        _tensors[out_diff_name]->producer = bwd_prefix + name;
+        _tensors[out_diff_name]->set_producer(bwd_prefix + name);
       }
     }
   }
@@ -973,19 +973,19 @@ void Network::_initOperators(onnx::ModelProto &model,
       const auto out_name = output[0];
       _tensors[out_name] =
           move(make_shared<Tensor>(out_name, _tensors[input_tensor]->dims()));
-      _tensors[out_name]->producer = name;
+      _tensors[out_name]->set_producer(name);
       auto labels_name = "labels";
       _tensors[labels_name]->add_consumer("fwd_" + name);
       auto loss_name = "loss";
       _tensors[loss_name] =
           move(make_shared<Tensor>(loss_name, _tensors[labels_name]->dims()));
-      _tensors[loss_name]->producer = name;
+      _tensors[loss_name]->set_producer(name);
       _tensors[loss_name]->add_consumer("external");
       if (_training) {
         auto out_diff_name = "diff_" + input_tensor;
         _tensors[out_diff_name] = move(
             make_shared<Tensor>(out_diff_name, _tensors[input_tensor]->dims()));
-        _tensors[out_diff_name]->producer = name;
+        _tensors[out_diff_name]->set_producer(name);
       }
       const int axis = _tensors[input_tensor]->dims().size() - 1;
       _operators.push_back(move(make_shared<SoftmaxWithLoss>(
@@ -1030,7 +1030,7 @@ void Network::_fillModelParameters(onnx::ModelProto &model) {
     }
     _tensors[name]->set_memory(move(make_memory(
         desc, _devices["cpu_0"]->get_engine(), static_cast<void *>(raw_data))));
-    _tensors[name]->producer = "external";
+    _tensors[name]->set_producer("external");
   }
 }
 
