@@ -48,6 +48,7 @@ Network::~Network() {
   _primitive_args.clear();
   for (auto t = _tensors.begin(); t != _tensors.end(); t++) {
     t->second->release();
+    t->second.reset();
   }
   _tensors.clear();
   for (auto op = _operators.begin(); op != _operators.end(); op++) {
