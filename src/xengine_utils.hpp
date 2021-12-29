@@ -72,6 +72,11 @@ float get_elapsed_ms(std::chrono::high_resolution_clock::time_point begin) {
   return static_cast<float>(duration) * 1e-6;
 }
 
+void print_memory_usage() {
+  system("free mem -h | grep -v total | tr -s ' ' | cut -d ' ' -f 3 | tr -s "
+         "'\n' ' '; echo");
+}
+
 std::vector<std::vector<std::string>>
 parse_input_file(const std::string &path) {
   auto info = std::vector<std::vector<std::string>>();
