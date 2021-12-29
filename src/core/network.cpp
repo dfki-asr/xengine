@@ -814,6 +814,10 @@ void Network::_insertSoftmax() {
 void Network::_preprocessModel(onnx::ModelProto &model,
                                unordered_map<string, vector<string>> &inputs,
                                unordered_map<string, vector<string>> &outputs) {
+  if (_tensors.empty()) {
+    throw runtime_error(
+        "Cannot preprocess model before tensors are initialized.");
+  }
   const auto nodes = model.graph().node();
   for (const auto &node : nodes) {
     const auto name = node.name();
