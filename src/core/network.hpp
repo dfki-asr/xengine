@@ -80,7 +80,6 @@ private:
   void _maybe_release_op(const int opID, const int schedID);
   void _reset_op_primitives();
 
-  vector<string> _operator_names;
   map<string, shared_ptr<Device>> _devices;
   unordered_map<string, shared_ptr<Tensor>> _tensors;
   vector<shared_ptr<Operator>> _operators;

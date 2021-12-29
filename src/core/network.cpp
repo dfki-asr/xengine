@@ -21,7 +21,6 @@ Network::Network(const string name, const string model_path,
   _devices = map<string, shared_ptr<Device>>();
   _tensors = unordered_map<string, shared_ptr<Tensor>>();
   _operators = vector<shared_ptr<Operator>>();
-  _operator_names = vector<string>();
   _primitives = vector<unique_ptr<primitive>>();
   _primitive_args = vector<unordered_map<int, memory>>();
   createDevices(_devices, device_file);
@@ -67,7 +66,6 @@ Network::~Network() {
     dev->second.reset();
   }
   _devices.clear();
-  _operator_names.clear();
   _unsetSchedule();
 }
 
@@ -829,7 +827,6 @@ void Network::_insertSoftmax() {
   _operators.push_back(move(make_shared<SoftmaxWithLoss>(
       name, vector<string>({input_tensor, labels_name}),
       vector<string>({out_name, loss_name}), axis, _tensors, _training)));
-  _operator_names.push_back(name);
 }
 
 void Network::_preprocessModel(onnx::ModelProto &model,
@@ -1040,7 +1037,6 @@ void Network::_initOperators(onnx::ModelProto &model,
     } else {
       throw runtime_error("unsupported operator type: " + type);
     }
-    _operator_names.push_back(name);
   }
   if (_operators.at(_operators.size() - 1)->type.find("Softmax") ==
       string::npos) {
