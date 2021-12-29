@@ -13,12 +13,12 @@ using namespace google::protobuf;
 using ft = memory::format_tag;
 using dt = memory::data_type;
 
-ModelProto load_model(const string &model_path) {
+ModelProto loadModel(const string &path) {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
-  ifstream in(model_path, ios_base::binary);
+  ifstream f(path, ios_base::binary);
   ModelProto model;
-  model.ParseFromIstream(&in);
-  in.close();
+  model.ParseFromIstream(&f);
+  f.close();
   checker::check_model(model);
   shape_inference::InferShapes(model);
   checker::check_model(model);
@@ -308,15 +308,13 @@ insert_input_tensors(unordered_map<string, shared_ptr<Tensor>> &tensors,
   }
 }
 
-inline unordered_map<string, shared_ptr<Tensor>>
-get_tensors(const ModelProto &model) {
-  auto tensors = unordered_map<string, shared_ptr<Tensor>>();
+void fillTensors(unordered_map<string, shared_ptr<Tensor>> &tensors,
+                 const ModelProto &model) {
   insert_nonInput_tensors(tensors, model.graph().value_info());
   insert_nonInput_tensors(tensors, model.graph().output());
   insert_input_tensors(tensors, model.graph());
   tensors.emplace("loss",
                   move(make_shared<Tensor>("loss", tensors["labels"]->dims())));
-  return tensors;
 }
 
 inline vector<string>
