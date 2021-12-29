@@ -578,17 +578,16 @@ void Network::solveILP(const string mpsfile, const string logfile) {
 }
 
 ExecuteOperator Network::_getExecuteOperator(const int ID) {
-  if (_schedule != nullptr) {
-    if (_schedule->size() != 0) {
-      auto d = _schedule->get(ID);
-      if (d->type != DecisionType::PRODUCE_TENSOR) {
-        throw runtime_error("Unsupported DecisionType!");
-      };
-      ExecuteOperator *e = static_cast<ExecuteOperator *>(d);
-      return *e;
-    }
+  if (_schedule == nullptr)
+    throw runtime_error("No schedule defined!");
+  if (_schedule->empty())
+    throw runtime_error("Schedule is empty!");
+  auto d = _schedule->get(ID);
+  if (d->type != DecisionType::PRODUCE_TENSOR) {
+    throw runtime_error("Unsupported DecisionType!");
   }
-  return ExecuteOperator(to_string(ID), _default_device, 0, "any");
+  ExecuteOperator *e = static_cast<ExecuteOperator *>(d);
+  return *e;
 }
 
 void Network::_maybe_provide_dummy_inputs(vector<string> &inputs) {
