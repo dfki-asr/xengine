@@ -18,11 +18,11 @@ Network::Network(const string model_name, const string &model_path,
       _output_dir(output_dir), _verbose(verbose), _measure_time(0),
       _benchmark_mode(0) {
   _mode = _training ? "training" : "inference";
-  create_devices(_devices, devices_path);
-  _default_device = _devices.begin()->first;
   onnx::ModelProto model = load_model(model_path);
   _tensors = get_tensors(model);
   unordered_map<string, vector<string>> inputs, outputs;
+  createDevices(_devices, device_file);
+  _default_device = _devices.begin()->first;
   _preprocessModel(model, inputs, outputs);
   _opsToKeep = 1;
   _initOperators(model, inputs, outputs);

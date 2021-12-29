@@ -359,9 +359,10 @@ get_params_from_proto(const NodeProto &node,
   }
 }
 
-void create_devices(map<string, shared_ptr<Device>> &devices,
-                    const string &devices_path) {
-  for (auto i : parse_input_file(devices_path)) {
-    devices[i.at(0)] = move(make_shared<Device>(i));
+void createDevices(map<string, shared_ptr<Device>> &devices,
+                   const string &device_file) {
+  for (auto d : parse_input_file(device_file)) {
+    const string device_name = d.at(0);
+    devices[device_name] = move(make_shared<Device>(d));
   }
 }
