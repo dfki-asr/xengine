@@ -101,6 +101,11 @@ void Network::_setSchedule(const string &schedulefile) {
   _schedule = move(make_unique<Schedule>(schedulefile));
 }
 
+void Network::_setSchedule(vector<vector<string>> &sched) {
+  _unsetSchedule();
+  _schedule = move(make_unique<Schedule>(sched));
+}
+
 void Network::_unsetSchedule() {
   if (_schedule != nullptr) {
     _schedule.reset();
@@ -289,24 +294,38 @@ void Network::_collectConsumerCopyCosts(const int opID, const int d,
   }
 }
 
-void Network::_fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
-                             vector<pair<string, edge>> &edges) {
-  // Execute full graph on different devices
-  string schedulefile = "tmp_schedule.txt";
-  string sched;
-  for (size_t opID = 0; opID < _operators.size(); opID++) {
-    sched += _operators.at(opID)->type + ";" + device_per_op[opID] + ";0;any\n";
+vector<vector<string>>
+Network::_createScheduleStringVec(vector<string> &device_per_op) {
+  auto sched = vector<vector<string>>();
+  for (size_t schedID = 0; schedID < _operators.size(); schedID++) {
+    vector<string> dec = {_operators.at(schedID)->type, device_per_op[schedID],
+                          "0", "any"};
+    sched.push_back(dec);
   }
   if (_training) {
     for (size_t i = 0; i < _operators.size(); i++) {
       auto opID = _operators.size() - i - 1;
       auto schedID = _operators.size() + i;
-      sched +=
-          _operators.at(opID)->type + ";" + device_per_op[schedID] + ";0;any\n";
+      vector<string> dec = {_operators.at(opID)->type, device_per_op[schedID],
+                            "0", "any"};
+      sched.push_back(dec);
     }
   }
-  writeString2File(schedulefile, sched);
-  _setSchedule(schedulefile);
+  return sched;
+}
+
+vector<vector<string>> Network::_createScheduleStringVec(string &device_name) {
+  const int num_ops = _training ? 2 * _operators.size() : _operators.size();
+  auto device_per_op = vector<string>(num_ops);
+  fill(device_per_op.begin(), device_per_op.end(), device_name);
+  return _createScheduleStringVec(device_per_op);
+}
+
+void Network::_fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
+                             vector<pair<string, edge>> &edges) {
+  // Execute full graph on different devices
+  vector<vector<string>> sched = _createScheduleStringVec(device_per_op);
+  _setSchedule(sched);
   // Execute
   _forward();
   if (_training) {

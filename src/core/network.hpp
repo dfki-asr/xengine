@@ -54,7 +54,11 @@ private:
   float _getTimeOfOp(const int opID, const string prefix,
                      const string time_type);
   void _computeMatrix2Schedule(matrix &R, const string &schedulefile);
+  vector<vector<string>> _createScheduleStringVec(string &device_name);
+  vector<vector<string>>
+  _createScheduleStringVec(vector<string> &device_per_op);
   void _writeScheduleFile(const string &schedulefile);
+  void _setSchedule(vector<vector<string>> &sched);
   void _setSchedule(const string &schedulefile);
   void _unsetSchedule();
   void _maxMemoryDemandInfo();
