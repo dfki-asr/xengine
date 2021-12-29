@@ -87,7 +87,6 @@ private:
   vector<unique_ptr<primitive>> _primitives;
   vector<unordered_map<int, memory>> _primitive_args;
   unique_ptr<Schedule> _schedule;
-  string _default_device;
   int _measure_time;
   int _verbose;
   int _training;

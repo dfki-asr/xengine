@@ -27,7 +27,6 @@ Network::Network(const string name, const string model_path,
   createDevices(_devices, device_file);
   onnx::ModelProto model = loadModel(model_path);
   fillTensors(_tensors, model);
-  _default_device = _devices.begin()->first;
   auto inputs = unordered_map<string, vector<string>>();
   auto outputs = unordered_map<string, vector<string>>();
   _preprocessModel(model, inputs, outputs);
@@ -157,10 +156,12 @@ void Network::benchmark(const string &data_path, const string &label_path) {
   _benchmark_mode = 1;
   // measure performance on all devices
   for (auto dev = _devices.begin(); dev != _devices.end(); dev++) {
-    _default_device = dev->first;
+    string dev_name = dev->first;
     if (_verbose > 0) {
-      cout << "*** " << _default_device << " *** " << _mode << " ***" << endl;
+      cout << "*** " << dev_name << " *** " << _mode << " ***" << endl;
     }
+    vector<vector<string>> sched = _createScheduleStringVec(dev_name);
+    _setSchedule(sched);
     run(data_path, label_path, 1);
   }
   _benchmark_mode = 0;
@@ -438,7 +439,6 @@ void Network::solveILP(const string mpsfile, const string logfile,
     // compute costs
     auto time_type = "total";
     for (size_t d = 0; d < dev_names.size(); d++) {
-      _default_device = dev_names[d];
       compute_costs_per_op.push_back(vector<float>());
       for (size_t opID = 0; opID < _operators.size(); opID++) {
         compute_costs_per_op[d].push_back(
@@ -759,11 +759,10 @@ void Network::_Xpass(const int is_fwd_pass) {
         avg_time = future.get();
         string prefix = schedID < _operators.size() ? "fwd_" : "bwd_";
         // opTime:   time in ms of Xth (last) operator execution
-        _default_device = _devices[e.engineID]->name;
         float opTime = _getTimeOfOp(opID, prefix, time_type);
         if (_verbose > 1) {
           cout << _operators.at(opID)->type << ": " << opTime << " vs. "
-               << avg_time << " on dev " << _default_device << endl;
+               << avg_time << endl;
         }
         avg_times.push_back(opTime);
       }
@@ -1121,8 +1120,8 @@ void Network::_scheduleOperator(const size_t &opID, const string prefix,
                                 string &best_schedule) {
   map<string, float> time_per_op;
   for (auto device = _devices.begin(); device != _devices.end(); device++) {
-    _default_device = device->first;
-    time_per_op[_default_device] = _getTimeOfOp(opID, prefix, "total");
+    auto dev_name = device->first;
+    time_per_op[dev_name] = _getTimeOfOp(opID, prefix, "total");
   }
   pair<string, float> best =
       *min_element(time_per_op.begin(), time_per_op.end(),
