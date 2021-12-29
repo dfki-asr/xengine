@@ -131,7 +131,7 @@ void Network::createSchedule(const string &schedulefile, const string &images,
     cout << "Create schedule file " << schedulefile << endl;
   }
   benchmark(images, labels);
-  _writeScheduleFile(schedulefile);
+  _writeScheduleFileMinTime(schedulefile);
 }
 
 void Network::run(const string &data_path, const string &label_path,
@@ -193,16 +193,34 @@ void Network::_computeMatrix2Schedule(matrix &R, const string &schedulefile) {
   writeString2File(schedulefile, best_schedule);
 }
 
-void Network::_writeScheduleFile(const string &schedulefile) {
-  string best_schedule;
+void Network::_scheduleOperatorMinTime(const size_t &opID, const string prefix,
+                                       string &best_schedule) {
+  map<string, float> time_per_op;
+  for (auto device = _devices.begin(); device != _devices.end(); device++) {
+    auto dev_name = device->first;
+    time_per_op[dev_name] = _getTimeOfOp(opID, prefix, "total");
+  }
+  pair<string, float> best =
+      *min_element(time_per_op.begin(), time_per_op.end(),
+                   [](pair<string, float> i, pair<string, float> j) {
+                     return i.second < j.second;
+                   });
+  best_schedule += _operators.at(opID)->type + ";" + best.first + ";0;any\n";
+  if (_verbose > 1) {
+    cout << "best choice: " + best.first << endl;
+  }
+}
+
+void Network::_writeScheduleFileMinTime(const string &schedulefile) {
+  string best_schedule = "";
   for (size_t opID = 0; opID < _operators.size(); opID++) {
-    _scheduleOperator(opID, "fwd_", best_schedule);
+    _scheduleOperatorMinTime(opID, "fwd_", best_schedule);
   }
   if (_training) {
     for (size_t i = 0; i < _operators.size(); i++) {
       auto opID = _operators.size() - i - 1;
       auto schedID = _operators.size() + i;
-      _scheduleOperator(opID, "bwd_", best_schedule);
+      _scheduleOperatorMinTime(opID, "bwd_", best_schedule);
     }
   }
   if (_verbose > 0) {
@@ -1118,24 +1136,6 @@ float Network::_getTimeOfOp(const int opID, const string prefix,
     cout << s << endl;
   }
   return time;
-}
-
-void Network::_scheduleOperator(const size_t &opID, const string prefix,
-                                string &best_schedule) {
-  map<string, float> time_per_op;
-  for (auto device = _devices.begin(); device != _devices.end(); device++) {
-    auto dev_name = device->first;
-    time_per_op[dev_name] = _getTimeOfOp(opID, prefix, "total");
-  }
-  pair<string, float> best =
-      *min_element(time_per_op.begin(), time_per_op.end(),
-                   [](pair<string, float> i, pair<string, float> j) {
-                     return i.second < j.second;
-                   });
-  best_schedule += _operators.at(opID)->type + ";" + best.first + ";0;any\n";
-  if (_verbose > 1) {
-    cout << "best choice: " + best.first << endl;
-  }
 }
 
 int Network::_getOpIndexFromName(const string opName) {

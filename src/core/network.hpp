@@ -49,15 +49,15 @@ private:
   void _fillInputTensors(const string &data_path, const string &label_path,
                          const size_t &batch);
   ExecuteOperator _getExecuteOperator(const int ID);
-  void _scheduleOperator(const size_t &opID, const string prefix,
-                         string &best_schedule);
+  void _scheduleOperatorMinTime(const size_t &opID, const string prefix,
+                                string &best_schedule);
   float _getTimeOfOp(const int opID, const string prefix,
                      const string time_type);
   void _computeMatrix2Schedule(matrix &R, const string &schedulefile);
   vector<vector<string>> _createScheduleStringVec(string &device_name);
   vector<vector<string>>
   _createScheduleStringVec(vector<string> &device_per_op);
-  void _writeScheduleFile(const string &schedulefile);
+  void _writeScheduleFileMinTime(const string &schedulefile);
   void _setSchedule(vector<vector<string>> &sched);
   void _setSchedule(const string &schedulefile);
   void _unsetSchedule();
