@@ -328,10 +328,7 @@ void Network::_fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
   vector<vector<string>> sched = _createScheduleStringVec(device_per_op);
   _setSchedule(sched);
   // Execute
-  _forward();
-  if (_training) {
-    _backward();
-  }
+  run("", "", 1);
   // Collect costs
   for (size_t opID = 0; opID < _operators.size(); opID++) {
     auto d = _getDevIndexFromName(device_per_op[opID]);
