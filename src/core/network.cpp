@@ -11,21 +11,26 @@
 using namespace std;
 using namespace dnnl;
 
-Network::Network(const string model_name, const string &model_path,
-                 const string &devices_path, const int training,
+Network::Network(const string name, const string model_path,
+                 const string device_file, const int training,
                  const string output_dir, const int verbose)
-    : _model_name(model_name), _training(training), _schedule(nullptr),
+    : _model_name(name), _training(training), _schedule(nullptr),
       _output_dir(output_dir), _verbose(verbose), _measure_time(0),
-      _benchmark_mode(0) {
-  _mode = _training ? "training" : "inference";
-  _tensors = get_tensors(model);
-  unordered_map<string, vector<string>> inputs, outputs;
+      _benchmark_mode(0), _opsToKeep(1),
+      _mode(training ? "training" : "inference") {
+  _devices = map<string, shared_ptr<Device>>();
+  _tensors = unordered_map<string, shared_ptr<Tensor>>();
+  _operators = vector<shared_ptr<Operator>>();
+  _operator_names = vector<string>();
+  _primitives = vector<unique_ptr<primitive>>();
+  _primitive_args = vector<unordered_map<int, memory>>();
   createDevices(_devices, device_file);
   onnx::ModelProto model = loadModel(model_path);
   fillTensors(_tensors, model);
   _default_device = _devices.begin()->first;
+  auto inputs = unordered_map<string, vector<string>>();
+  auto outputs = unordered_map<string, vector<string>>();
   _preprocessModel(model, inputs, outputs);
-  _opsToKeep = 1;
   _initOperators(model, inputs, outputs);
   if (_verbose > 0) {
     cout << endl

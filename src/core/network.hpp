@@ -11,9 +11,8 @@ using namespace dnnl;
 
 class Network {
 public:
-  Network(const string model_name, const string &model_path,
-          const string &devices_path, const int training,
-          const string output_dir, const int verbose = 0);
+  Network(const string name, const string model_path, const string device_file,
+          const int training, const string output_dir, const int verbose = 0);
   ~Network();
   string name() { return _model_name; }
   string mode() { return _mode; }
