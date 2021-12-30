@@ -11,10 +11,11 @@ using namespace dnnl;
 
 class Network {
 public:
-  Network(const string name, const string model_path, const string device_file,
+  Network(const string name, const string model_file, const string device_file,
           const int training, const string output_dir, const int verbose = 0);
   ~Network();
-  string name() { return _model_name; }
+
+  string name() { return _name; }
   string mode() { return _mode; }
   string output_directory() { return _output_dir; }
   void run(const string &data_path, const string &label_path,
@@ -44,7 +45,6 @@ private:
   void _initOperators(onnx::ModelProto &model,
                       unordered_map<string, vector<string>> &inputs,
                       unordered_map<string, vector<string>> &outputs);
-  void _insertSoftmax();
   void _fillModelParameters(onnx::ModelProto &model);
   void _fillInputTensors(const string &data_path, const string &label_path,
                          const size_t &batch);
@@ -91,7 +91,7 @@ private:
   int _benchmark_mode;
   int _opsToKeep;
   string _mode;
-  string _model_name;
+  string _name;
   string _output_dir;
 };
 #endif

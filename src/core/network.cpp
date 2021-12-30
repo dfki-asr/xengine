@@ -11,10 +11,10 @@
 using namespace std;
 using namespace dnnl;
 
-Network::Network(const string name, const string model_path,
+Network::Network(const string name, const string model_file,
                  const string device_file, const int training,
                  const string output_dir, const int verbose)
-    : _model_name(name), _training(training), _schedule(nullptr),
+    : _name(name), _training(training), _schedule(nullptr),
       _output_dir(output_dir), _verbose(verbose), _measure_time(0),
       _benchmark_mode(0), _opsToKeep(1),
       _mode(training ? "training" : "inference") {
@@ -24,7 +24,7 @@ Network::Network(const string name, const string model_path,
   _primitives = vector<unique_ptr<primitive>>();
   _primitive_args = vector<unordered_map<int, memory>>();
   createDevices(_devices, device_file);
-  onnx::ModelProto model = loadModel(model_path);
+  onnx::ModelProto model = loadModel(model_file);
   fillTensors(_tensors, model);
   auto inputs = unordered_map<string, vector<string>>();
   auto outputs = unordered_map<string, vector<string>>();
@@ -32,8 +32,7 @@ Network::Network(const string name, const string model_path,
   _initOperators(model, inputs, outputs);
   if (_verbose > 0) {
     cout << endl
-         << "********** " << _model_name << " *** " << _mode << " ********"
-         << endl;
+         << "********** " << _name << " *** " << _mode << " ********" << endl;
     maxMemoryDemandInfo(_tensors, _verbose);
     maxMemoryDemandInfo(_operators, _training, _verbose);
   }
@@ -349,12 +348,12 @@ void Network::solveILP(const string mpsfile, const string logfile,
   // choose Gurobi if available, otherwise CBC
 #ifdef HAS_GUROBI
   ilp = make_unique<ILP_Solver_GRB>(
-      _model_name + "_" + _mode, mpsfile, logfile, edges, dev_names,
+      _name + "_" + _mode, mpsfile, logfile, edges, dev_names,
       compute_costs_per_op, memory_per_op, copy_costs, budget, ram, _verbose);
 #else
 #ifdef HAS_CBC
   ilp = make_unique<ILP_Solver_CBC>(
-      _model_name + "_" + _mode, mpsfile, logfile, edges, dev_names,
+      _name + "_" + _mode, mpsfile, logfile, edges, dev_names,
       compute_costs_per_op, memory_per_op, copy_costs, budget, ram, _verbose);
 #endif
 #endif
@@ -368,7 +367,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
   string budget_str =
       to_string(static_cast<int>(budget[0] / 1024.0 / 1024.0)) + "MB_" +
       to_string(static_cast<int>(budget[1] / 1024.0 / 1024.0)) + "MB";
-  string schedulefile = _output_dir + "/" + _model_name + "_" + _mode + "_" +
+  string schedulefile = _output_dir + "/" + _name + "_" + _mode + "_" +
                         budget_str + "_ilp_schedule.txt";
   _computeMatrix2Schedule(R, schedulefile);
   matrix S = ilp->get_S();
@@ -500,7 +499,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
       }
     }
     if (_verbose > 0) {
-      cout << _model_name << " " << _mode
+      cout << _name << " " << _mode
            << " has computational costs:" << endl;
       for (size_t d = 0; d < dev_names.size(); d++) {
         cout << dev_names[d] << ": ";
@@ -509,7 +508,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
         }
         cout << endl;
       }
-      cout << _model_name << " " << _mode << " has memory costs:" << endl;
+      cout << _name << " " << _mode << " has memory costs:" << endl;
       for (auto m : memory_per_op) {
         printf("%0.3lf MB  ", m / 1e6);
       }
@@ -775,34 +774,6 @@ void Network::_Xpass(const int is_fwd_pass) {
   }
 }
 
-void Network::_insertSoftmax() {
-  const string name = "softmax0";
-  auto out_name = "prediction";
-  auto loss_name = "loss";
-  auto labels_name = "labels";
-  const auto input_tensor = _operators.at(_operators.size() - 1)->output.at(0);
-  const auto input_dims = _tensors[input_tensor]->dims();
-  const int axis = input_dims.size() - 1;
-  _tensors[out_name] = move(make_shared<Tensor>(out_name, input_dims));
-  _tensors[out_name]->set_producer(name);
-  _tensors[out_name]->add_consumer("external");
-  _tensors[loss_name] =
-      move(make_shared<Tensor>(loss_name, _tensors[labels_name]->dims()));
-  _tensors[loss_name]->set_producer(name);
-  _tensors[loss_name]->add_consumer("external");
-  _tensors[input_tensor]->add_consumer("fwd_" + name);
-  _tensors[labels_name]->add_consumer("fwd_" + name);
-  if (_training) {
-    auto out_diff_name = "diff_" + input_tensor;
-    _tensors[out_diff_name] = move(
-        make_shared<Tensor>(out_diff_name, _tensors[input_tensor]->dims()));
-    _tensors[out_diff_name]->set_producer(name);
-  }
-  _operators.push_back(move(make_shared<SoftmaxWithLoss>(
-      name, vector<string>({input_tensor, labels_name}),
-      vector<string>({out_name, loss_name}), axis, _tensors, _training)));
-}
-
 void Network::_preprocessModel(onnx::ModelProto &model,
                                unordered_map<string, vector<string>> &inputs,
                                unordered_map<string, vector<string>> &outputs) {
@@ -1014,7 +985,32 @@ void Network::_initOperators(onnx::ModelProto &model,
   }
   if (_operators.at(_operators.size() - 1)->type.find("Softmax") ==
       string::npos) {
-    _insertSoftmax();
+    const string name = "softmax0";
+    auto out_name = "prediction";
+    auto loss_name = "loss";
+    auto labels_name = "labels";
+    const auto input_tensor =
+        _operators.at(_operators.size() - 1)->output.at(0);
+    const auto input_dims = _tensors[input_tensor]->dims();
+    const int axis = input_dims.size() - 1;
+    _tensors[out_name] = move(make_shared<Tensor>(out_name, input_dims));
+    _tensors[out_name]->set_producer(name);
+    _tensors[out_name]->add_consumer("external");
+    _tensors[loss_name] =
+        move(make_shared<Tensor>(loss_name, _tensors[labels_name]->dims()));
+    _tensors[loss_name]->set_producer(name);
+    _tensors[loss_name]->add_consumer("external");
+    _tensors[input_tensor]->add_consumer("fwd_" + name);
+    _tensors[labels_name]->add_consumer("fwd_" + name);
+    if (_training) {
+      auto out_diff_name = "diff_" + input_tensor;
+      _tensors[out_diff_name] = move(
+          make_shared<Tensor>(out_diff_name, _tensors[input_tensor]->dims()));
+      _tensors[out_diff_name]->set_producer(name);
+    }
+    _operators.push_back(move(make_shared<SoftmaxWithLoss>(
+        name, vector<string>({input_tensor, labels_name}),
+        vector<string>({out_name, loss_name}), axis, _tensors, _training)));
   }
 }
 
