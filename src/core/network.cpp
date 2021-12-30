@@ -171,7 +171,7 @@ void Network::benchmark(const string &data_path, const string &label_path) {
 void Network::_computeMatrix2Schedule(matrix &R, const string &schedulefile) {
   // This only computes a very dumb schedule (only frontier advancing stage, no
   // recomputes)
-  string best_schedule;
+  string best_schedule = "";
   for (size_t opID = 0; opID < _operators.size(); opID++) {
     string device_name = R.at(0, opID, opID) == 1 ? "cpu_0" : "gpu_0";
     best_schedule += _operators.at(opID)->type + ";" + device_name + ";0;any\n";
