@@ -73,8 +73,7 @@ private:
                                  vector<pair<string, edge>> &edges,
                                  matrix &copy_costs);
   void _maybe_provide_dummy_inputs(vector<string> &inputs);
-  void _maybe_release_outputs(vector<string> &outputs);
-  void _maybe_release_op(const int opID, const int schedID);
+  void _release_tensors(vector<string> &tensor_names);
   void _reset_op_primitives();
 
   map<string, shared_ptr<Device>> _devices;

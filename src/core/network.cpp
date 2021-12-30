@@ -592,21 +592,9 @@ void Network::_maybe_provide_dummy_inputs(vector<string> &inputs) {
   }
 }
 
-void Network::_maybe_release_outputs(vector<string> &outputs) {
-  if (_benchmark_mode) {
-    for (auto o : outputs) {
-      _tensors[o]->release();
-    }
-  }
-}
-
-void Network::_maybe_release_op(const int opID, const int schedID) {
-  if (_benchmark_mode) {
-    if (opID < _operators.size()) {
-      _operators.at(opID)->reset_fwd_primitives();
-    } else {
-      _operators.at(opID)->reset_bwd_primitives();
-    }
+void Network::_release_tensors(vector<string> &tensor_names) {
+  for (auto t : tensor_names) {
+    _tensors[t]->release();
   }
 }
 
@@ -645,10 +633,12 @@ float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
 
 void Network::_Xpass(const int is_fwd_pass) {
   vector<float> avg_times = vector<float>();
-  size_t opID, schedID;
-  int releaseOpID, releaseSchedID;
-  vector<string> inputs, outputs, release_outputs;
-  string mode;
+  size_t opID = 0, schedID = 0;
+  int releaseOpID = 0, releaseSchedID = 0;
+  auto inputs = vector<string>();
+  auto outputs = vector<string>();
+  auto release_outputs = vector<string>();
+  string mode = "";
   for (size_t j = 0; j < _operators.size(); j++) {
     if (is_fwd_pass) {
       opID = j;
@@ -671,41 +661,24 @@ void Network::_Xpass(const int is_fwd_pass) {
     }
     // Release
     if (schedID > _opsToKeep) {
-      if (is_fwd_pass) {
-        releaseOpID = opID - 2;
-        releaseSchedID = releaseOpID;
-        release_outputs = _operators.at(releaseOpID)->_f_op.output;
-        if (_verbose > 1) {
-          cout << "free " << to_string(releaseOpID) << " fwd" << endl;
-        }
-        _maybe_release_outputs(release_outputs);
-        _maybe_release_op(releaseOpID, releaseSchedID);
-      } else {
-        releaseSchedID = schedID - 2;
-        if (releaseSchedID >= _operators.size()) {
-          releaseOpID = 2 * _operators.size() - releaseSchedID - 1;
-          if (_verbose > 1) {
-            cout << "free " << to_string(releaseOpID) << " bwd" << endl;
-          }
-          release_outputs = _operators.at(releaseOpID)->_b_op.output;
-          _maybe_release_outputs(release_outputs);
-          _maybe_release_op(releaseOpID, releaseSchedID);
-          if (_verbose > 1) {
-            cout << "free " << to_string(releaseOpID) << " fwd" << endl;
-          }
-          release_outputs = _operators.at(releaseOpID)->_f_op.output;
-          _maybe_release_outputs(release_outputs);
-          _maybe_release_op(releaseOpID, releaseSchedID);
-        } else {
-          releaseOpID = releaseSchedID;
-          if (_verbose > 1) {
-            cout << "free " << to_string(releaseOpID) << " fwd" << endl;
-          }
-          release_outputs = _operators.at(releaseOpID)->_f_op.output;
-          _maybe_release_outputs(release_outputs);
-          _maybe_release_op(releaseOpID, releaseSchedID);
-        }
+      releaseSchedID = schedID - 2;
+      releaseOpID = (releaseSchedID < _operators.size())
+                        ? releaseSchedID
+                        : 2 * _operators.size() - releaseSchedID - 1;
+      if (_verbose > 1) {
+        cout << "free " << to_string(releaseSchedID) << " (OpID "
+             << to_string(releaseOpID) << ")" << endl;
       }
+      if (releaseSchedID < _operators.size()) {
+        _release_tensors(_operators.at(releaseOpID)->_f_op.output);
+        _operators.at(releaseOpID)->reset_fwd_primitives();
+      } else {
+        _release_tensors(_operators.at(releaseOpID)->_b_op.output);
+        _operators.at(releaseOpID)->reset_bwd_primitives();
+        _release_tensors(_operators.at(releaseOpID)->_f_op.output);
+        _operators.at(releaseOpID)->reset_fwd_primitives();
+      }
+      _release_tensors(inputs);
     }
     // Compute
     _maybe_provide_dummy_inputs(inputs);
