@@ -42,9 +42,9 @@ private:
   void _preprocessModel(onnx::ModelProto &model,
                         unordered_map<string, vector<string>> &inputs,
                         unordered_map<string, vector<string>> &outputs);
-  void _initOperators(onnx::ModelProto &model,
-                      unordered_map<string, vector<string>> &inputs,
-                      unordered_map<string, vector<string>> &outputs);
+  void _init(onnx::ModelProto &model,
+             unordered_map<string, vector<string>> &inputs,
+             unordered_map<string, vector<string>> &outputs);
   void _fillModelParameters(onnx::ModelProto &model);
   void _fillInputTensors(const string &data_path, const string &label_path,
                          const size_t &batch);

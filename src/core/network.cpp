@@ -29,7 +29,7 @@ Network::Network(const string name, const string model_file,
   auto inputs = unordered_map<string, vector<string>>();
   auto outputs = unordered_map<string, vector<string>>();
   _preprocessModel(model, inputs, outputs);
-  _initOperators(model, inputs, outputs);
+  _init(model, inputs, outputs);
   if (_verbose > 0) {
     cout << endl
          << "********** " << _name << " *** " << _mode << " ********" << endl;
@@ -829,55 +829,13 @@ void Network::_preprocessModel(onnx::ModelProto &model,
     inputs[name] = vector<string>();
     outputs[name] = vector<string>();
   }
-  const string fwd_prefix = "fwd_";
-  const string bwd_prefix = "bwd_";
-  for (const auto &node : nodes) {
-    const auto name = node.name();
-    const auto input = inputs[name];
-    const auto output = outputs[name];
-    if (node.op_type() == "Dropout" && _training == true && output.size() > 1) {
-      auto mask_name = output[1];
-      _tensors[mask_name] =
-          move(make_shared<Tensor>(mask_name, _tensors[output[0]]->dims()));
-    }
-    for (auto tensor : output)
-      _tensors[tensor]->set_producer(fwd_prefix + name);
-    for (auto tensor : input)
-      _tensors[tensor]->add_consumer(fwd_prefix + name);
-  }
-  if (_training) {
-    for (const auto &node : nodes) {
-      const auto name = node.name();
-      const auto type = node.op_type();
-      if (type.find("Pool") != string::npos ||
-          type.find("LRN") != string::npos) {
-        auto output_name = outputs[name].at(0);
-        auto ws_name = output_name + "_ws";
-        _tensors[ws_name] =
-            move(make_shared<Tensor>(ws_name, _tensors[output_name]->dims()));
-        _tensors[ws_name]->set_producer(fwd_prefix + name);
-      } else if (type == "BatchNormalization") {
-        auto gamma_diff_name =
-            "diff_" + inputs[name].at(1) + "_" + inputs[name].at(2);
-        auto channels = _tensors[inputs[name].at(0)]->dims().at(1);
-        auto gamma_dims = memory::dims({channels, channels});
-        _tensors[gamma_diff_name] =
-            move(make_shared<Tensor>(gamma_diff_name, gamma_dims));
-        _tensors[gamma_diff_name]->set_producer(bwd_prefix + name);
-      }
-      for (auto tensor : inputs[name]) {
-        auto out_diff_name = "diff_" + tensor;
-        _tensors[out_diff_name] =
-            move(make_shared<Tensor>(out_diff_name, _tensors[tensor]->dims()));
-        _tensors[out_diff_name]->set_producer(bwd_prefix + name);
-      }
-    }
-  }
 }
 
-void Network::_initOperators(onnx::ModelProto &model,
-                             unordered_map<string, vector<string>> &inputs,
-                             unordered_map<string, vector<string>> &outputs) {
+void Network::_init(onnx::ModelProto &model,
+                    unordered_map<string, vector<string>> &inputs,
+                    unordered_map<string, vector<string>> &outputs) {
+  const string fwd_prefix = "fwd_";
+  const string bwd_prefix = "bwd_";
   for (const auto &node : model.graph().node()) {
     const auto name = node.name();
     if (name.empty()) {
@@ -894,6 +852,13 @@ void Network::_initOperators(onnx::ModelProto &model,
     if (type == "Flatten" || type == "Reshape" ||
         (type == "Dropout" && _training == false))
       continue;
+    if (type.find("Pool") != string::npos && _training == true) {
+      auto output_name = outputs[name].at(0);
+      auto ws_name = output_name + "_ws";
+      _tensors[ws_name] =
+          move(make_shared<Tensor>(ws_name, _tensors[output_name]->dims()));
+      _tensors[ws_name]->set_producer(fwd_prefix + name);
+    }
     if (type == "Conv") {
       _operators.push_back(
           make_shared<Conv>(name, input, output, dim_parameters["strides"],
@@ -930,10 +895,22 @@ void Network::_initOperators(onnx::ModelProto &model,
       _operators.push_back(move(make_shared<LeakyRelu>(
           name, input, output, alpha, _tensors, _training)));
     } else if (type == "Dropout") {
+      if (output.size() > 1) {
+        auto mask_name = output[1];
+        _tensors[mask_name] =
+            move(make_shared<Tensor>(mask_name, _tensors[output[0]]->dims()));
+      }
       float probability = float_parameters["ratio"];
       _operators.push_back(move(make_shared<Dropout>(
           name, input, output, probability, _tensors, _training)));
     } else if (type == "LRN") {
+      if (_training) {
+        auto output_name = outputs[name].at(0);
+        auto ws_name = output_name + "_ws";
+        _tensors[ws_name] =
+            move(make_shared<Tensor>(ws_name, _tensors[output_name]->dims()));
+        _tensors[ws_name]->set_producer(fwd_prefix + name);
+      }
       float alpha = float_parameters["alpha"];
       float beta = float_parameters["beta"];
       float bias = float_parameters["bias"];
@@ -941,6 +918,15 @@ void Network::_initOperators(onnx::ModelProto &model,
       _operators.push_back(move(make_shared<LRN>(
           name, input, output, alpha, beta, bias, size, _tensors, _training)));
     } else if (type == "BatchNormalization") {
+      if (_training) {
+        auto gamma_diff_name =
+            "diff_" + inputs[name].at(1) + "_" + inputs[name].at(2);
+        auto channels = _tensors[inputs[name].at(0)]->dims().at(1);
+        auto gamma_dims = memory::dims({channels, channels});
+        _tensors[gamma_diff_name] =
+            move(make_shared<Tensor>(gamma_diff_name, gamma_dims));
+        _tensors[gamma_diff_name]->set_producer(bwd_prefix + name);
+      }
       float epsilon = float_parameters["epsilon"];
       float momentum = float_parameters["momentum"];
       _operators.push_back(move(make_shared<BatchNormalization>(
@@ -963,7 +949,7 @@ void Network::_initOperators(onnx::ModelProto &model,
           move(make_shared<Tensor>(out_name, _tensors[input_tensor]->dims()));
       _tensors[out_name]->set_producer(name);
       auto labels_name = "labels";
-      _tensors[labels_name]->add_consumer("fwd_" + name);
+      _tensors[labels_name]->add_consumer(fwd_prefix + name);
       auto loss_name = "loss";
       _tensors[loss_name] =
           move(make_shared<Tensor>(loss_name, _tensors[labels_name]->dims()));
@@ -981,6 +967,20 @@ void Network::_initOperators(onnx::ModelProto &model,
           vector<string>({out_name, loss_name}), axis, _tensors, _training)));
     } else {
       throw runtime_error("unsupported operator type: " + type);
+    }
+    for (auto tensor : output) {
+      _tensors[tensor]->set_producer(fwd_prefix + name);
+    }
+    for (auto tensor : input) {
+      _tensors[tensor]->add_consumer(fwd_prefix + name);
+    }
+    if (_training) {
+      for (auto tensor : input) {
+        auto out_diff_name = "diff_" + tensor;
+        _tensors[out_diff_name] =
+            move(make_shared<Tensor>(out_diff_name, _tensors[tensor]->dims()));
+        _tensors[out_diff_name]->set_producer(bwd_prefix + name);
+      }
     }
   }
   if (_operators.at(_operators.size() - 1)->type.find("Softmax") ==
@@ -1000,8 +1000,8 @@ void Network::_initOperators(onnx::ModelProto &model,
         move(make_shared<Tensor>(loss_name, _tensors[labels_name]->dims()));
     _tensors[loss_name]->set_producer(name);
     _tensors[loss_name]->add_consumer("external");
-    _tensors[input_tensor]->add_consumer("fwd_" + name);
-    _tensors[labels_name]->add_consumer("fwd_" + name);
+    _tensors[input_tensor]->add_consumer(fwd_prefix + name);
+    _tensors[labels_name]->add_consumer(fwd_prefix + name);
     if (_training) {
       auto out_diff_name = "diff_" + input_tensor;
       _tensors[out_diff_name] = move(
