@@ -5,6 +5,8 @@
 #include <chrono>
 #include <string>
 
+using namespace std;
+
 dnnl::memory::data_type g_data_type = dnnl::memory::data_type::f32;
 
 inline dnnl::memory make_memory(const dnnl::memory::desc &md,
