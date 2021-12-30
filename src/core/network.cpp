@@ -579,15 +579,13 @@ ExecuteOperator Network::_getExecuteOperator(const int ID) {
   return *e;
 }
 
-void Network::_maybe_provide_dummy_inputs(vector<string> &inputs) {
-  if (_benchmark_mode) {
-    for (auto i : inputs) {
-      if (!_tensors[i]->is_initialized()) {
-        if (_verbose > 1) {
-          cout << "reinit " << _tensors[i]->name() << endl;
-        }
-        _tensors[i]->reinit(_tensors[i]->desc());
+void Network::_maybe_reinit_tensors(vector<string> &tensor_names) {
+  for (auto i : tensor_names) {
+    if (!_tensors[i]->is_initialized()) {
+      if (_verbose > 1) {
+        cout << "reinit " << _tensors[i]->name() << endl;
       }
+      _tensors[i]->reinit(_tensors[i]->desc());
     }
   }
 }
@@ -681,7 +679,7 @@ void Network::_Xpass(const int is_fwd_pass) {
       _release_tensors(inputs);
     }
     // Compute
-    _maybe_provide_dummy_inputs(inputs);
+    _maybe_reinit_tensors(inputs);
     auto e = _getExecuteOperator(schedID);
     auto out_tag = e.outputTag.to_dnnl();
     float avg_time = 0.0f;

@@ -72,7 +72,8 @@ private:
                                  vector<string> &device_per_op,
                                  vector<pair<string, edge>> &edges,
                                  matrix &copy_costs);
-  void _maybe_provide_dummy_inputs(vector<string> &inputs);
+
+  void _maybe_reinit_tensors(vector<string> &tensor_names);
   void _release_tensors(vector<string> &tensor_names);
   void _reset_op_primitives();
 
