@@ -770,6 +770,9 @@ void Network::_run(const string &data_path, const string &label_path,
     }
   }
   _resetPrimitives();
+  for (auto t = _tensors.begin(); t != _tensors.end(); t++) {
+    t->second->release();
+  }
 }
 
 void Network::_benchmark(const string &data_path, const string &label_path) {
