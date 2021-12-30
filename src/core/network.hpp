@@ -37,8 +37,6 @@ public:
 
 private:
   void _Xpass(const int is_fwd_pass);
-  void _forward();
-  void _backward();
   void _preprocessModel(onnx::ModelProto &model,
                         unordered_map<string, vector<string>> &inputs,
                         unordered_map<string, vector<string>> &outputs);

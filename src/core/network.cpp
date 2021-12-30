@@ -109,9 +109,9 @@ void Network::run(const string &data_path, const string &label_path,
                   const size_t num_iterations) {
   for (auto i = 0; i < num_iterations; i++) {
     _fillInputTensors(data_path, label_path, i);
-    _forward();
+    _Xpass(1);
     if (_training) {
-      _backward();
+      _Xpass(0);
     }
   }
   _reset_op_primitives();
@@ -608,16 +608,6 @@ void Network::_maybe_release_op(const int opID, const int schedID) {
       _operators.at(opID)->reset_bwd_primitives();
     }
   }
-}
-
-void Network::_forward() {
-  const int is_fwd_pass = 1;
-  _Xpass(is_fwd_pass);
-}
-
-void Network::_backward() {
-  const int is_fwd_pass = 0;
-  _Xpass(is_fwd_pass);
 }
 
 float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
