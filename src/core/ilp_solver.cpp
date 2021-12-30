@@ -22,6 +22,28 @@ string value2str(const float value) {
   return s.str();
 }
 
+vector<size_t> getUncoveredEdges(vector<pair<string, edge>> &edges,
+                                 matrix &copy_costs) {
+  vector<size_t> edges_uncovered;
+  size_t num_devices = copy_costs.get_cols();
+  // Go through all copy costs and check if we forgot something
+  for (size_t i = 0; i < edges.size(); i++) {
+    float tmp = 0;
+    for (size_t d_ = 0; d_ < num_devices; d_++) {
+      for (size_t d = 0; d < num_devices; d++) {
+        // get copy costs from d -> to d_
+        tmp += copy_costs.at(i, d, d_);
+      }
+    }
+    if (tmp > 0.0f) {
+      continue;
+    } else {
+      edges_uncovered.push_back(i);
+    }
+  }
+  return edges_uncovered;
+}
+
 int getEdgeIndexFromName(vector<pair<string, edge>> &edges,
                          const string edgeName) {
   for (size_t edgeID = 0; edgeID < edges.size(); edgeID++) {

@@ -68,271 +68,26 @@ Network::~Network() {
   _unsetSchedule();
 }
 
-void Network::_setSchedule(const string &schedulefile) {
-  _unsetSchedule();
-  _schedule = move(make_unique<Schedule>(schedulefile));
-}
+/**************************************************************/
+//                   public
+/**************************************************************/
 
-void Network::_setSchedule(vector<vector<string>> &sched) {
-  _unsetSchedule();
-  _schedule = move(make_unique<Schedule>(sched));
-}
-
-void Network::_unsetSchedule() {
-  if (_schedule != nullptr) {
-    _schedule.reset();
-    _schedule.release();
-    _schedule = nullptr;
-  }
-}
-
-void Network::runSchedule(const string &schedulefile, const string &images,
-                          const string &labels, const size_t num_iterations) {
-  if (_verbose > 0) {
-    cout << "Run schedule file " << schedulefile << endl;
-  }
-  _setSchedule(schedulefile);
-  run(images, labels, num_iterations);
-}
-
-void Network::createSchedule(const string &schedulefile, const string &images,
+void Network::createSchedule(const string &schedule_file, const string &images,
                              const string &labels) {
   if (_verbose > 0) {
-    cout << "Create schedule file " << schedulefile << endl;
+    cout << "Create schedule file " << schedule_file << endl;
   }
-  benchmark(images, labels);
-  _writeScheduleFileMinTime(schedulefile);
+  _benchmark(images, labels);
+  _writeScheduleFileMinTime(schedule_file);
 }
 
-void Network::run(const string &data_path, const string &label_path,
-                  const size_t num_iterations) {
-  for (auto i = 0; i < num_iterations; i++) {
-    _fillInputTensors(data_path, label_path, i);
-    _Xpass(1);
-    if (_training) {
-      _Xpass(0);
-    }
-  }
-  _reset_op_primitives();
-}
-
-void Network::_reset_op_primitives() {
-  for (auto op : _operators) {
-    op->reset_fwd_primitives();
-    op->reset_bwd_primitives();
-  }
-}
-
-void Network::benchmark(const string &data_path, const string &label_path) {
-  // be sure to ignore any schedule
-  _unsetSchedule();
-  // measure performance on all devices
-  for (auto dev = _devices.begin(); dev != _devices.end(); dev++) {
-    string dev_name = dev->first;
-    if (_verbose > 0) {
-      cout << "*** " << dev_name << " *** " << _mode << " ***" << endl;
-    }
-    vector<vector<string>> sched = _createScheduleStringVec(dev_name);
-    _setSchedule(sched);
-    run(data_path, label_path, 1);
-  }
-}
-
-void Network::_computeMatrix2Schedule(matrix &R, const string &schedulefile) {
-  // This only computes a very dumb schedule (only frontier advancing stage, no
-  // recomputes)
-  string best_schedule = "";
-  for (size_t opID = 0; opID < _operators.size(); opID++) {
-    string device_name = R.at(0, opID, opID) == 1 ? "cpu_0" : "gpu_0";
-    best_schedule += _operators.at(opID)->type + ";" + device_name + ";0;any\n";
-  }
-  if (_training) {
-    for (size_t i = 0; i < _operators.size(); i++) {
-      auto opID = _operators.size() - i - 1;
-      auto schedID = _operators.size() + i;
-      string device_name = R.at(0, schedID, schedID) == 1 ? "cpu_0" : "gpu_0";
-      best_schedule +=
-          _operators.at(opID)->type + ";" + device_name + ";0;any\n";
-    }
-  }
+void Network::runSchedule(const string &schedule_file, const string &images,
+                          const string &labels, const size_t num_iterations) {
   if (_verbose > 0) {
-    cout << "Best schedule: \n" << best_schedule << endl;
+    cout << "Run schedule file " << schedule_file << endl;
   }
-  writeString2File(schedulefile, best_schedule);
-}
-
-void Network::_scheduleOperatorMinTime(const size_t &opID, const string prefix,
-                                       string &best_schedule) {
-  map<string, float> time_per_op;
-  for (auto device = _devices.begin(); device != _devices.end(); device++) {
-    auto dev_name = device->first;
-    time_per_op[dev_name] = _getTimeOfOp(opID, prefix, "total");
-  }
-  pair<string, float> best =
-      *min_element(time_per_op.begin(), time_per_op.end(),
-                   [](pair<string, float> i, pair<string, float> j) {
-                     return i.second < j.second;
-                   });
-  best_schedule += _operators.at(opID)->type + ";" + best.first + ";0;any\n";
-  if (_verbose > 1) {
-    cout << "best choice: " + best.first << endl;
-  }
-}
-
-void Network::_writeScheduleFileMinTime(const string &schedulefile) {
-  string best_schedule = "";
-  for (size_t opID = 0; opID < _operators.size(); opID++) {
-    _scheduleOperatorMinTime(opID, "fwd_", best_schedule);
-  }
-  if (_training) {
-    for (size_t i = 0; i < _operators.size(); i++) {
-      auto opID = _operators.size() - i - 1;
-      auto schedID = _operators.size() + i;
-      _scheduleOperatorMinTime(opID, "bwd_", best_schedule);
-    }
-  }
-  if (_verbose > 0) {
-    cout << "Best schedule: \n" << best_schedule << endl;
-  }
-  writeString2File(schedulefile, best_schedule);
-}
-
-vector<string> Network::_selectDevicePerOp(vector<string> dev_names,
-                                           const int srcDifferent) {
-  auto device_per_op = vector<string>();
-  for (size_t i = 0; i < _operators.size(); i++) {
-    size_t dev_idx = (i % dev_names.size());
-    auto dev_name = dev_names[dev_idx];
-    device_per_op.push_back(dev_name);
-  }
-  if (_training) {
-    for (size_t i = 0; i < _operators.size(); i++) {
-      size_t schedID = _operators.size() + i;
-      size_t dev_idx = (schedID % dev_names.size());
-      string dev_name = dev_names[dev_idx];
-      if (srcDifferent) {
-        int opID = 2 * _operators.size() - schedID - 2;
-        if (opID >= 0) {
-          if (dev_name == device_per_op[opID]) {
-            size_t idx = dev_idx == 1 ? 0 : 1;
-            dev_name = dev_names[idx];
-          }
-        }
-      }
-      device_per_op.push_back(dev_name);
-    }
-  }
-  return device_per_op;
-}
-
-vector<size_t> Network::_get_uncovered_edges(vector<pair<string, edge>> &edges,
-                                             matrix &copy_costs) {
-  vector<size_t> edges_uncovered;
-  // Go through all copy costs and check if we forgot something
-  for (size_t i = 0; i < edges.size(); i++) {
-    float tmp = 0;
-    for (size_t d_ = 0; d_ < _devices.size(); d_++) {
-      for (size_t d = 0; d < _devices.size(); d++) {
-        // get copy costs from d -> to d_
-        tmp += copy_costs.at(i, d, d_);
-      }
-    }
-    if (tmp > 0.0f) {
-      continue;
-    } else {
-      edges_uncovered.push_back(i);
-    }
-  }
-  return edges_uncovered;
-}
-
-void Network::_collectConsumerCopyCosts(const int opID, const int d,
-                                        vector<string> outputs,
-                                        vector<string> &device_per_op,
-                                        vector<pair<string, edge>> &edges,
-                                        matrix &copy_costs) {
-  for (auto output : outputs) {
-    for (auto consumer : _tensors[output]->consumers()) {
-      if (consumer == "external") {
-        continue;
-      }
-      auto consumerSchedID = _getOpIndexFromName(consumer);
-      auto cons_dev_name = device_per_op[consumerSchedID];
-      auto d_ = _getDevIndexFromName(cons_dev_name);
-      if (d == d_) {
-        continue;
-      }
-      auto consumerOpID = consumerSchedID;
-      string prefix = "fwd_";
-      if (consumerSchedID >= _operators.size()) {
-        consumerOpID = 2 * _operators.size() - consumerSchedID - 1;
-        prefix = "bwd_";
-      }
-      auto timings = _operators.at(consumerOpID)->timings;
-      auto producer = _tensors[output]->producer();
-      const size_t src_idx = _getOpIndexFromName(producer);
-      const size_t dst_idx = consumerSchedID;
-      const string edgeName = to_string(src_idx) + "->" + to_string(dst_idx);
-      float edgeCosts = timings[prefix + cons_dev_name][output];
-      auto edgeID = getEdgeIndexFromName(edges, edgeName);
-      // set copy costs from d -> to d_
-      float c = copy_costs.at(edgeID, d, d_);
-      if (c == 0.0f) {
-        copy_costs.set(edgeID, d, d_, edgeCosts);
-      }
-    }
-  }
-}
-
-vector<vector<string>>
-Network::_createScheduleStringVec(vector<string> &device_per_op) {
-  auto sched = vector<vector<string>>();
-  for (size_t schedID = 0; schedID < _operators.size(); schedID++) {
-    vector<string> dec = {_operators.at(schedID)->type, device_per_op[schedID],
-                          "0", "any"};
-    sched.push_back(dec);
-  }
-  if (_training) {
-    for (size_t i = 0; i < _operators.size(); i++) {
-      auto opID = _operators.size() - i - 1;
-      auto schedID = _operators.size() + i;
-      vector<string> dec = {_operators.at(opID)->type, device_per_op[schedID],
-                            "0", "any"};
-      sched.push_back(dec);
-    }
-  }
-  return sched;
-}
-
-vector<vector<string>> Network::_createScheduleStringVec(string &device_name) {
-  const int num_ops = _training ? 2 * _operators.size() : _operators.size();
-  auto device_per_op = vector<string>(num_ops);
-  fill(device_per_op.begin(), device_per_op.end(), device_name);
-  return _createScheduleStringVec(device_per_op);
-}
-
-void Network::_fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
-                             vector<pair<string, edge>> &edges) {
-  // Execute full graph on different devices
-  vector<vector<string>> sched = _createScheduleStringVec(device_per_op);
-  _setSchedule(sched);
-  // Execute
-  run("", "", 1);
-  // Collect costs
-  for (size_t opID = 0; opID < _operators.size(); opID++) {
-    auto d = _getDevIndexFromName(device_per_op[opID]);
-    _collectConsumerCopyCosts(opID, d, _operators.at(opID)->_f_op.output,
-                              device_per_op, edges, copy_costs);
-  }
-  if (_training) {
-    for (size_t i = 0; i < _operators.size(); i++) {
-      auto opID = _operators.size() - i - 1;
-      auto schedID = _operators.size() + i;
-      auto d = _getDevIndexFromName(device_per_op[schedID]);
-      _collectConsumerCopyCosts(schedID, d, _operators.at(opID)->_b_op.output,
-                                device_per_op, edges, copy_costs);
-    }
-  }
+  _setSchedule(schedule_file);
+  _run(images, labels, num_iterations);
 }
 
 void Network::solveILP(const string mpsfile, const string logfile,
@@ -409,8 +164,8 @@ void Network::solveILP(const string mpsfile, const string logfile,
       if (src == dst) {
         continue;
       }
-      const size_t src_idx = _getOpIndexFromName(src);
-      const size_t dst_idx = _getOpIndexFromName(dst);
+      const size_t src_idx = getOpIndexFromName(_operators, src);
+      const size_t dst_idx = getOpIndexFromName(_operators, dst);
       const string edgeName = to_string(src_idx) + "->" + to_string(dst_idx);
       edges.push_back(pair<string, edge>(edgeName, edge(src_idx, dst_idx)));
     }
@@ -421,7 +176,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
     if (_verbose > 0) {
       cout << "Benchmark ILP, aquire data ..." << endl;
     }
-    benchmark("", "");
+    _benchmark("", "");
     // compute costs
     auto time_type = "total";
     for (size_t d = 0; d < dev_names.size(); d++) {
@@ -452,19 +207,20 @@ void Network::solveILP(const string mpsfile, const string logfile,
       cout << "measure copy costs ..." << endl;
       vector<string> device_per_op;
       do {
-        _reset_op_primitives();
-        device_per_op = _selectDevicePerOp(dev_names);
+        _resetPrimitives();
+        device_per_op = selectDevicePerOp(_operators, dev_names, _training);
         _fillCopyCosts(copy_costs, device_per_op, edges);
       } while (next_permutation(dev_names.begin(), dev_names.end()));
       if (_training) {
         do {
-          _reset_op_primitives();
-          device_per_op = _selectDevicePerOp(dev_names, 1);
+          _resetPrimitives();
+          device_per_op =
+              selectDevicePerOp(_operators, dev_names, _training, 1);
           _fillCopyCosts(copy_costs, device_per_op, edges);
         } while (next_permutation(dev_names.begin(), dev_names.end()));
       }
-      _reset_op_primitives();
-      vector<size_t> edges_uncovered = _get_uncovered_edges(edges, copy_costs);
+      _resetPrimitives();
+      vector<size_t> edges_uncovered = getUncoveredEdges(edges, copy_costs);
       for (size_t d = 0; d < _devices.size(); d++) {
         vector<string> cover_last_edges_device_per_op = device_per_op;
         for (size_t i : edges_uncovered) {
@@ -475,11 +231,11 @@ void Network::solveILP(const string mpsfile, const string logfile,
               (device_per_op[op2switch] == dev_names[0]) ? dev_names[1]
                                                          : dev_names[0];
         }
-        _reset_op_primitives();
+        _resetPrimitives();
         _fillCopyCosts(copy_costs, cover_last_edges_device_per_op, edges);
       }
       vector<size_t> edges_still_uncovered =
-          _get_uncovered_edges(edges, copy_costs);
+          getUncoveredEdges(edges, copy_costs);
       if (edges_still_uncovered.size() != 0) {
         for (auto i : edges_still_uncovered) {
           cout << "edge " << edges[i].first << " uncovered!" << endl;
@@ -496,8 +252,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
       }
     }
     if (_verbose > 0) {
-      cout << _name << " " << _mode
-           << " has computational costs:" << endl;
+      cout << _name << " " << _mode << " has computational costs:" << endl;
       for (size_t d = 0; d < dev_names.size(); d++) {
         cout << dev_names[d] << ": ";
         for (auto c : compute_costs_per_op[d]) {
@@ -563,161 +318,9 @@ void Network::solveILP(const string mpsfile, const string logfile) {
   solveILP(mpsfile, logfile, "", "", 0);
 }
 
-ExecuteOperator Network::_getExecuteOperator(const int ID) {
-  if (_schedule == nullptr)
-    throw runtime_error("No schedule defined!");
-  if (_schedule->empty())
-    throw runtime_error("Schedule is empty!");
-  auto d = _schedule->get(ID);
-  if (d->type != DecisionType::PRODUCE_TENSOR) {
-    throw runtime_error("Unsupported DecisionType!");
-  }
-  ExecuteOperator *e = static_cast<ExecuteOperator *>(d);
-  return *e;
-}
-
-void Network::_maybe_reinit_tensors(vector<string> &tensor_names) {
-  for (auto i : tensor_names) {
-    if (!_tensors[i]->is_initialized()) {
-      if (_verbose > 1) {
-        cout << "reinit " << _tensors[i]->name() << endl;
-      }
-      _tensors[i]->reinit(_tensors[i]->desc());
-    }
-  }
-}
-
-void Network::_release_tensors(vector<string> &tensor_names) {
-  for (auto t : tensor_names) {
-    _tensors[t]->release();
-  }
-}
-
-float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
-            unordered_map<std::string, shared_ptr<Tensor>> &tensors,
-            memory::format_tag out_tag, int verbose) {
-  size_t num_executions = 10;
-  size_t warmup_iterations = 5;
-  dnnl_set_verbose(0);
-  auto begin = get_time();
-  int measure_time = 0;
-  for (size_t i = 0; i < warmup_iterations + num_executions; i++) {
-    if (i == warmup_iterations) {
-      begin = get_time();
-    }
-    if (i == warmup_iterations + num_executions - 1) {
-      measure_time = 1;
-      dnnl_set_verbose(verbose > 1);
-    }
-    if (is_fwd_pass) {
-      op->forward(*dev.get(), tensors, out_tag, measure_time);
-      op->reset_fwd_primitives();
-    } else {
-      op->backward(*dev.get(), tensors, out_tag, measure_time);
-      op->reset_bwd_primitives();
-    }
-  }
-  float avg_time = get_elapsed_ms(begin) / static_cast<float>(num_executions);
-  dnnl_set_verbose(0);
-  return avg_time;
-}
-
-void Network::_Xpass(const int is_fwd_pass) {
-  vector<float> avg_times = vector<float>();
-  size_t opID = 0, schedID = 0;
-  int releaseOpID = 0, releaseSchedID = 0;
-  auto inputs = vector<string>();
-  auto outputs = vector<string>();
-  auto release_outputs = vector<string>();
-  string mode = "";
-  for (size_t j = 0; j < _operators.size(); j++) {
-    if (is_fwd_pass) {
-      opID = j;
-      schedID = j;
-      inputs = _operators.at(opID)->_f_op.input;
-      outputs = _operators.at(opID)->_f_op.output;
-      mode = "fwd";
-    } else {
-      opID = _operators.size() - j - 1;
-      schedID = _operators.size() + j;
-      inputs = _operators.at(opID)->_b_op.input;
-      outputs = _operators.at(opID)->_b_op.output;
-      mode = "bwd";
-    }
-    if (_verbose > 1) {
-      cout << "compute " << to_string(schedID) << " "
-           << _operators.at(opID)->name << " (" << _operators.at(opID)->type
-           << ")"
-           << " " << mode << endl;
-    }
-    // Release
-    if (schedID > _opsToKeep) {
-      releaseSchedID = schedID - 2;
-      releaseOpID = (releaseSchedID < _operators.size())
-                        ? releaseSchedID
-                        : 2 * _operators.size() - releaseSchedID - 1;
-      if (_verbose > 1) {
-        cout << "free " << to_string(releaseSchedID) << " (OpID "
-             << to_string(releaseOpID) << ")" << endl;
-      }
-      if (releaseSchedID < _operators.size()) {
-        _release_tensors(_operators.at(releaseOpID)->_f_op.output);
-        _operators.at(releaseOpID)->reset_fwd_primitives();
-      } else {
-        _release_tensors(_operators.at(releaseOpID)->_b_op.output);
-        _operators.at(releaseOpID)->reset_bwd_primitives();
-        _release_tensors(_operators.at(releaseOpID)->_f_op.output);
-        _operators.at(releaseOpID)->reset_fwd_primitives();
-      }
-      _release_tensors(inputs);
-    }
-    // Compute
-    _maybe_reinit_tensors(inputs);
-    auto e = _getExecuteOperator(schedID);
-    auto out_tag = e.outputTag.to_dnnl();
-    float avg_time = 0.0f;
-    string time_type = "total";
-    packaged_task<float(int, shared_ptr<Operator> &, shared_ptr<Device> &,
-                        unordered_map<std::string, shared_ptr<Tensor>> &,
-                        memory::format_tag, int)>
-        task(runOP);
-    auto future = task.get_future();
-    thread thr(move(task), is_fwd_pass, std::ref(_operators.at(opID)),
-               std::ref(_devices[e.engineID]), std::ref(_tensors), out_tag,
-               _verbose, _benchmark_mode);
-    if (future.wait_for(50s) != future_status::timeout) {
-      thr.join();
-      // avg_time: average time in ms over last X executions
-      if (future.valid()) {
-        avg_time = future.get();
-        string prefix = schedID < _operators.size() ? "fwd_" : "bwd_";
-        // opTime:   time in ms of Xth (last) operator execution
-        float opTime = _getTimeOfOp(opID, prefix, time_type);
-        if (_verbose > 1) {
-          cout << _operators.at(opID)->type << ": " << opTime << " vs. "
-               << avg_time << endl;
-        }
-        avg_times.push_back(opTime);
-      }
-    } else {
-      thr.detach();
-      throw std::runtime_error("Timeout in operator " +
-                               _operators.at(opID)->name + "_" + mode + "!");
-    }
-  }
-  float total_avg = accumulate(avg_times.begin(), avg_times.end(), 0.0);
-  if (_verbose > 0) {
-    printf("%s took %0.2lf ms in average.\n", mode.c_str(), total_avg);
-  }
-  if (_verbose > 1) {
-    cout << "avg times: " << endl;
-    for (size_t opID = 0; opID < _operators.size(); opID++) {
-      cout << "   " << mode << " " << _operators.at(opID)->name << ": "
-           << avg_times[opID] << endl;
-    }
-  }
-}
-
+/**************************************************************/
+//                   private
+/**************************************************************/
 void Network::_preprocessModel(onnx::ModelProto &model,
                                unordered_map<string, vector<string>> &inputs,
                                unordered_map<string, vector<string>> &outputs) {
@@ -1030,6 +633,285 @@ void Network::_fillInputTensors(const string &data_path,
                        static_cast<void *>(v_l.data()))));
 }
 
+/**************************************************************/
+
+float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
+            unordered_map<std::string, shared_ptr<Tensor>> &tensors,
+            memory::format_tag out_tag, int verbose) {
+  size_t num_executions = 10;
+  size_t warmup_iterations = 5;
+  dnnl_set_verbose(0);
+  auto begin = get_time();
+  int measure_time = 0;
+  for (size_t i = 0; i < warmup_iterations + num_executions; i++) {
+    if (i == warmup_iterations) {
+      begin = get_time();
+    }
+    if (i == warmup_iterations + num_executions - 1) {
+      measure_time = 1;
+      dnnl_set_verbose(verbose > 1);
+    }
+    if (is_fwd_pass) {
+      op->forward(*dev.get(), tensors, out_tag, measure_time);
+      op->reset_fwd_primitives();
+    } else {
+      op->backward(*dev.get(), tensors, out_tag, measure_time);
+      op->reset_bwd_primitives();
+    }
+  }
+  float avg_time = get_elapsed_ms(begin) / static_cast<float>(num_executions);
+  dnnl_set_verbose(0);
+  return avg_time;
+}
+
+void Network::_Xpass(const int is_fwd_pass) {
+  vector<float> avg_times = vector<float>();
+  size_t opID = 0, schedID = 0;
+  int releaseOpID = 0, releaseSchedID = 0;
+  auto inputs = vector<string>();
+  auto outputs = vector<string>();
+  auto release_outputs = vector<string>();
+  string mode = "";
+  for (size_t j = 0; j < _operators.size(); j++) {
+    if (is_fwd_pass) {
+      opID = j;
+      schedID = j;
+      inputs = _operators.at(opID)->_f_op.input;
+      outputs = _operators.at(opID)->_f_op.output;
+      mode = "fwd";
+    } else {
+      opID = _operators.size() - j - 1;
+      schedID = _operators.size() + j;
+      inputs = _operators.at(opID)->_b_op.input;
+      outputs = _operators.at(opID)->_b_op.output;
+      mode = "bwd";
+    }
+    if (_verbose > 1) {
+      cout << "compute " << to_string(schedID) << " "
+           << _operators.at(opID)->name << " (" << _operators.at(opID)->type
+           << ")"
+           << " " << mode << endl;
+    }
+    // Release
+    if (schedID > _opsToKeep) {
+      releaseSchedID = schedID - 2;
+      releaseOpID = (releaseSchedID < _operators.size())
+                        ? releaseSchedID
+                        : 2 * _operators.size() - releaseSchedID - 1;
+      if (_verbose > 1) {
+        cout << "free " << to_string(releaseSchedID) << " (OpID "
+             << to_string(releaseOpID) << ")" << endl;
+      }
+      if (releaseSchedID < _operators.size()) {
+        _releaseTensors(_operators.at(releaseOpID)->_f_op.output);
+        _operators.at(releaseOpID)->reset_fwd_primitives();
+      } else {
+        _releaseTensors(_operators.at(releaseOpID)->_b_op.output);
+        _operators.at(releaseOpID)->reset_bwd_primitives();
+        _releaseTensors(_operators.at(releaseOpID)->_f_op.output);
+        _operators.at(releaseOpID)->reset_fwd_primitives();
+      }
+      _releaseTensors(inputs);
+    }
+    // Compute
+    _reinitTensors(inputs);
+    auto e = _getExecuteOperator(schedID);
+    auto out_tag = e.outputTag.to_dnnl();
+    float avg_time = 0.0f;
+    string time_type = "total";
+    packaged_task<float(int, shared_ptr<Operator> &, shared_ptr<Device> &,
+                        unordered_map<std::string, shared_ptr<Tensor>> &,
+                        memory::format_tag, int)>
+        task(runOP);
+    auto future = task.get_future();
+    thread thr(move(task), is_fwd_pass, std::ref(_operators.at(opID)),
+               std::ref(_devices[e.engineID]), std::ref(_tensors), out_tag,
+               _verbose);
+    if (future.wait_for(500s) != future_status::timeout) {
+      thr.join();
+      // avg_time: average time in ms over last X executions
+      if (future.valid()) {
+        avg_time = future.get();
+        string prefix = schedID < _operators.size() ? "fwd_" : "bwd_";
+        // opTime:   time in ms of Xth (last) operator execution
+        float opTime = _getTimeOfOp(opID, prefix, time_type);
+        if (_verbose > 1) {
+          cout << _operators.at(opID)->type << ": " << opTime << " vs. "
+               << avg_time << endl;
+        }
+        avg_times.push_back(opTime);
+      }
+    } else {
+      thr.detach();
+      throw std::runtime_error("Timeout in operator " +
+                               _operators.at(opID)->name + "_" + mode + "!");
+    }
+  }
+  float total_avg = accumulate(avg_times.begin(), avg_times.end(), 0.0);
+  if (_verbose > 0) {
+    printf("%s took %0.2lf ms in average.\n", mode.c_str(), total_avg);
+  }
+  if (_verbose > 1) {
+    cout << "avg times: " << endl;
+    for (size_t opID = 0; opID < _operators.size(); opID++) {
+      cout << "   " << mode << " " << _operators.at(opID)->name << ": "
+           << avg_times[opID] << endl;
+    }
+  }
+}
+
+void Network::_run(const string &data_path, const string &label_path,
+                   const size_t num_iterations) {
+  for (auto i = 0; i < num_iterations; i++) {
+    _fillInputTensors(data_path, label_path, i);
+    _Xpass(1);
+    if (_training) {
+      _Xpass(0);
+    }
+  }
+  _resetPrimitives();
+}
+
+void Network::_benchmark(const string &data_path, const string &label_path) {
+  // measure performance on all devices
+  for (auto dev = _devices.begin(); dev != _devices.end(); dev++) {
+    string dev_name = dev->first;
+    if (_verbose > 0) {
+      cout << "*** " << dev_name << " *** " << _mode << " ***" << endl;
+    }
+    vector<vector<string>> sched = _createScheduleStringVec(dev_name);
+    _setSchedule(sched);
+    _run(data_path, label_path, 1);
+  }
+}
+
+void Network::_reinitTensors(vector<string> &tensor_names) {
+  for (auto i : tensor_names) {
+    if (!_tensors[i]->is_initialized()) {
+      if (_verbose > 1) {
+        cout << "reinit " << _tensors[i]->name() << endl;
+      }
+      _tensors[i]->reinit(_tensors[i]->desc());
+    }
+  }
+}
+
+void Network::_releaseTensors(vector<string> &tensor_names) {
+  for (auto t : tensor_names) {
+    if (_verbose > 1) {
+      cout << "release " << _tensors[t]->name() << endl;
+    }
+    _tensors[t]->release();
+  }
+}
+
+void Network::_resetPrimitives() {
+  for (auto op : _operators) {
+    op->reset_fwd_primitives();
+    op->reset_bwd_primitives();
+  }
+}
+
+/**************************************************************/
+
+vector<vector<string>>
+Network::_createScheduleStringVec(vector<string> &device_per_op) {
+  auto sched = vector<vector<string>>();
+  for (size_t schedID = 0; schedID < _operators.size(); schedID++) {
+    vector<string> dec = {_operators.at(schedID)->type, device_per_op[schedID],
+                          "0", "any"};
+    sched.push_back(dec);
+  }
+  if (_training) {
+    for (size_t i = 0; i < _operators.size(); i++) {
+      auto opID = _operators.size() - i - 1;
+      auto schedID = _operators.size() + i;
+      vector<string> dec = {_operators.at(opID)->type, device_per_op[schedID],
+                            "0", "any"};
+      sched.push_back(dec);
+    }
+  }
+  return sched;
+}
+
+vector<vector<string>> Network::_createScheduleStringVec(string &device_name) {
+  const int num_ops = _training ? 2 * _operators.size() : _operators.size();
+  auto device_per_op = vector<string>(num_ops);
+  fill(device_per_op.begin(), device_per_op.end(), device_name);
+  return _createScheduleStringVec(device_per_op);
+}
+
+void Network::_setSchedule(const string &schedulefile) {
+  _unsetSchedule();
+  _schedule = move(make_unique<Schedule>(schedulefile));
+}
+
+void Network::_setSchedule(vector<vector<string>> &sched) {
+  _unsetSchedule();
+  _schedule = move(make_unique<Schedule>(sched));
+}
+
+void Network::_unsetSchedule() {
+  if (_schedule != nullptr) {
+    _schedule.reset();
+    _schedule.release();
+    _schedule = nullptr;
+  }
+}
+
+/**************************************************************/
+
+void Network::_scheduleOperatorMinTime(const size_t &opID, const string prefix,
+                                       string &best_schedule) {
+  map<string, float> time_per_op;
+  for (auto device = _devices.begin(); device != _devices.end(); device++) {
+    auto dev_name = device->first;
+    time_per_op[dev_name] = _getTimeOfOp(opID, prefix, "total");
+  }
+  pair<string, float> best =
+      *min_element(time_per_op.begin(), time_per_op.end(),
+                   [](pair<string, float> i, pair<string, float> j) {
+                     return i.second < j.second;
+                   });
+  best_schedule += _operators.at(opID)->type + ";" + best.first + ";0;any\n";
+  if (_verbose > 1) {
+    cout << "best choice: " + best.first << endl;
+  }
+}
+
+void Network::_writeScheduleFileMinTime(const string &schedulefile) {
+  string best_schedule = "";
+  for (size_t opID = 0; opID < _operators.size(); opID++) {
+    _scheduleOperatorMinTime(opID, "fwd_", best_schedule);
+  }
+  if (_training) {
+    for (size_t i = 0; i < _operators.size(); i++) {
+      auto opID = _operators.size() - i - 1;
+      auto schedID = _operators.size() + i;
+      _scheduleOperatorMinTime(opID, "bwd_", best_schedule);
+    }
+  }
+  if (_verbose > 0) {
+    cout << "Best schedule: \n" << best_schedule << endl;
+  }
+  writeString2File(schedulefile, best_schedule);
+}
+
+/**************************************************************/
+
+ExecuteOperator Network::_getExecuteOperator(const int ID) {
+  if (_schedule == nullptr)
+    throw runtime_error("No schedule defined!");
+  if (_schedule->empty())
+    throw runtime_error("Schedule is empty!");
+  auto d = _schedule->get(ID);
+  if (d->type != DecisionType::PRODUCE_TENSOR) {
+    throw runtime_error("Unsupported DecisionType!");
+  }
+  ExecuteOperator *e = static_cast<ExecuteOperator *>(d);
+  return *e;
+}
+
 float Network::_getTimeOfOp(const int opID, const string prefix,
                             const string time_type) {
   auto op = _operators.at(opID);
@@ -1048,28 +930,91 @@ float Network::_getTimeOfOp(const int opID, const string prefix,
   return time;
 }
 
-int Network::_getOpIndexFromName(const string opName) {
+void Network::_computeMatrix2Schedule(matrix &R, const string &schedulefile) {
+  // This only computes a very dumb schedule (only frontier advancing stage, no
+  // recomputes)
+  string best_schedule = "";
   for (size_t opID = 0; opID < _operators.size(); opID++) {
-    if ("fwd_" + _operators[opID]->name == opName) {
-      return opID;
+    string device_name = R.at(0, opID, opID) == 1 ? "cpu_0" : "gpu_0";
+    best_schedule += _operators.at(opID)->type + ";" + device_name + ";0;any\n";
+  }
+  if (_training) {
+    for (size_t i = 0; i < _operators.size(); i++) {
+      auto opID = _operators.size() - i - 1;
+      auto schedID = _operators.size() + i;
+      string device_name = R.at(0, schedID, schedID) == 1 ? "cpu_0" : "gpu_0";
+      best_schedule +=
+          _operators.at(opID)->type + ";" + device_name + ";0;any\n";
     }
   }
-  for (size_t i = 0; i < _operators.size(); i++) {
-    auto opID = _operators.size() - i - 1;
-    if ("bwd_" + _operators[opID]->name == opName) {
-      return _operators.size() + i;
-    }
+  if (_verbose > 0) {
+    cout << "Best schedule: \n" << best_schedule << endl;
   }
-  throw runtime_error("Operator " + opName + " was not found!");
+  writeString2File(schedulefile, best_schedule);
 }
 
-int Network::_getDevIndexFromName(const string devName) {
-  size_t idx = 0;
-  for (auto dev = _devices.begin(); dev != _devices.end(); dev++) {
-    if (dev->first == devName) {
-      return idx;
-    }
-    idx += 1;
+/**************************************************************/
+
+void Network::_fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
+                             vector<pair<string, edge>> &edges) {
+  // Execute full graph on different devices
+  vector<vector<string>> sched = _createScheduleStringVec(device_per_op);
+  _setSchedule(sched);
+  // Execute
+  _run("", "", 1);
+  // Collect costs
+  for (size_t opID = 0; opID < _operators.size(); opID++) {
+    auto d = getDevIndexFromName(_devices, device_per_op[opID]);
+    _collectConsumerCopyCosts(opID, d, _operators.at(opID)->_f_op.output,
+                              device_per_op, edges, copy_costs);
   }
-  throw runtime_error("Device " + devName + " was not found!");
+  if (_training) {
+    for (size_t i = 0; i < _operators.size(); i++) {
+      auto opID = _operators.size() - i - 1;
+      auto schedID = _operators.size() + i;
+      auto d = getDevIndexFromName(_devices, device_per_op[schedID]);
+      _collectConsumerCopyCosts(schedID, d, _operators.at(opID)->_b_op.output,
+                                device_per_op, edges, copy_costs);
+    }
+  }
 }
+
+void Network::_collectConsumerCopyCosts(const int opID, const int d,
+                                        vector<string> outputs,
+                                        vector<string> &device_per_op,
+                                        vector<pair<string, edge>> &edges,
+                                        matrix &copy_costs) {
+  for (auto output : outputs) {
+    for (auto consumer : _tensors[output]->consumers()) {
+      if (consumer == "external") {
+        continue;
+      }
+      auto consumerSchedID = getOpIndexFromName(_operators, consumer);
+      auto cons_dev_name = device_per_op[consumerSchedID];
+      auto d_ = getDevIndexFromName(_devices, cons_dev_name);
+      if (d == d_) {
+        continue;
+      }
+      auto consumerOpID = consumerSchedID;
+      string prefix = "fwd_";
+      if (consumerSchedID >= _operators.size()) {
+        consumerOpID = 2 * _operators.size() - consumerSchedID - 1;
+        prefix = "bwd_";
+      }
+      auto timings = _operators.at(consumerOpID)->timings;
+      auto producer = _tensors[output]->producer();
+      const size_t src_idx = getOpIndexFromName(_operators, producer);
+      const size_t dst_idx = consumerSchedID;
+      const string edgeName = to_string(src_idx) + "->" + to_string(dst_idx);
+      float edgeCosts = timings[prefix + cons_dev_name][output];
+      auto edgeID = getEdgeIndexFromName(edges, edgeName);
+      // set copy costs from d -> to d_
+      float c = copy_costs.at(edgeID, d, d_);
+      if (c == 0.0f) {
+        copy_costs.set(edgeID, d, d_, edgeCosts);
+      }
+    }
+  }
+}
+
+/**************************************************************/

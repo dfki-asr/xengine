@@ -361,6 +361,63 @@ void maxMemoryDemandInfo(unordered_map<string, shared_ptr<Tensor>> &tensors,
        << to_string(tensor_md) << " MB." << endl;
 }
 
+int getOpIndexFromName(vector<shared_ptr<Operator>> &operators,
+                       const string opName) {
+  for (size_t opID = 0; opID < operators.size(); opID++) {
+    if ("fwd_" + operators[opID]->name == opName) {
+      return opID;
+    }
+  }
+  for (size_t i = 0; i < operators.size(); i++) {
+    auto opID = operators.size() - i - 1;
+    if ("bwd_" + operators[opID]->name == opName) {
+      return operators.size() + i;
+    }
+  }
+  throw runtime_error("Operator " + opName + " was not found!");
+}
+
+int getDevIndexFromName(map<string, shared_ptr<Device>> &devices,
+                        const string devName) {
+  size_t idx = 0;
+  for (auto dev = devices.begin(); dev != devices.end(); dev++) {
+    if (dev->first == devName) {
+      return idx;
+    }
+    idx += 1;
+  }
+  throw runtime_error("Device " + devName + " was not found!");
+}
+
+vector<string> selectDevicePerOp(vector<shared_ptr<Operator>> &operators,
+                                 vector<string> dev_names, const int training,
+                                 const int srcDifferent = 0) {
+  auto device_per_op = vector<string>();
+  for (size_t i = 0; i < operators.size(); i++) {
+    size_t dev_idx = (i % dev_names.size());
+    auto dev_name = dev_names[dev_idx];
+    device_per_op.push_back(dev_name);
+  }
+  if (training) {
+    for (size_t i = 0; i < operators.size(); i++) {
+      size_t schedID = operators.size() + i;
+      size_t dev_idx = (schedID % dev_names.size());
+      string dev_name = dev_names[dev_idx];
+      if (srcDifferent) {
+        int opID = 2 * operators.size() - schedID - 2;
+        if (opID >= 0) {
+          if (dev_name == device_per_op[opID]) {
+            size_t idx = dev_idx == 1 ? 0 : 1;
+            dev_name = dev_names[idx];
+          }
+        }
+      }
+      device_per_op.push_back(dev_name);
+    }
+  }
+  return device_per_op;
+}
+
 inline vector<string>
 get_string_vector_from_proto(RepeatedPtrField<string> proto) {
   vector<string> string_vec;
