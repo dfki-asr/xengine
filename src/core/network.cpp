@@ -34,7 +34,8 @@ Network::Network(const string name, const string model_path,
     cout << endl
          << "********** " << _model_name << " *** " << _mode << " ********"
          << endl;
-    _maxMemoryDemandInfo();
+    maxMemoryDemandInfo(_tensors, _verbose);
+    maxMemoryDemandInfo(_operators, _training, _verbose);
   }
   auto begin = get_time();
   _fillModelParameters(model);
@@ -67,33 +68,6 @@ Network::~Network() {
   }
   _devices.clear();
   _unsetSchedule();
-}
-
-void Network::_maxMemoryDemandInfo() {
-  float op_md = 0.0f;
-  for (auto op : _operators) {
-    op_md += op->getFwdMemoryConsumption();
-  }
-  if (_training) {
-    for (size_t i = 0; i < _operators.size(); i++) {
-      auto opID = _operators.size() - i - 1;
-      op_md += _operators.at(opID)->getBwdMemoryConsumption();
-    }
-  }
-  op_md /= (1024.0f * 1024.0f);
-  float tensor_md = 0.0f;
-  for (auto it = _tensors.begin(); it != _tensors.end(); it++) {
-    string t_name = it->first;
-    float bytes = product(it->second->dims()) * sizeof(float);
-    if (_verbose > 1) {
-      cout << t_name << " with " << to_string(bytes / (1024.0f * 1024.0f))
-           << " MB." << endl;
-    }
-    tensor_md += bytes;
-  }
-  tensor_md /= (1024.0f * 1024.0f);
-  cout << "max memory if keeping all tensors at the same time: "
-       << to_string(tensor_md) << " MB." << endl;
 }
 
 void Network::_setSchedule(const string &schedulefile) {

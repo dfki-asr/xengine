@@ -61,7 +61,6 @@ private:
   void _setSchedule(vector<vector<string>> &sched);
   void _setSchedule(const string &schedulefile);
   void _unsetSchedule();
-  void _maxMemoryDemandInfo();
   int _getOpIndexFromName(const string opName);
   int _getDevIndexFromName(const string devName);
   vector<string> _selectDevicePerOp(vector<string> dev_names,

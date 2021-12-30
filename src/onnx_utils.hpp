@@ -317,6 +317,50 @@ void fillTensors(unordered_map<string, shared_ptr<Tensor>> &tensors,
                   move(make_shared<Tensor>("loss", tensors["labels"]->dims())));
 }
 
+void maxMemoryDemandInfo(vector<shared_ptr<Operator>> &operators,
+                         const int training, const int verbose = 0) {
+  float op_md = 0.0f;
+  for (auto op : operators) {
+    float bytes = op->getFwdMemoryConsumption();
+    if (verbose > 1) {
+      cout << op->name << " fwd with " << to_string(bytes / (1024.0f * 1024.0f))
+           << " MB." << endl;
+    }
+    op_md += bytes;
+  }
+  if (training) {
+    for (size_t i = 0; i < operators.size(); i++) {
+      auto opID = operators.size() - i - 1;
+      float bytes = operators.at(opID)->getBwdMemoryConsumption();
+      if (verbose > 1) {
+        cout << operators.at(opID)->name << " bwd with "
+             << to_string(bytes / (1024.0f * 1024.0f)) << " MB." << endl;
+      }
+      op_md += bytes;
+    }
+  }
+  op_md /= (1024.0f * 1024.0f);
+  cout << "max memory if keeping all operators at the same time: "
+       << to_string(op_md) << " MB." << endl;
+}
+
+void maxMemoryDemandInfo(unordered_map<string, shared_ptr<Tensor>> &tensors,
+                         const int verbose = 0) {
+  float tensor_md = 0.0f;
+  for (auto it = tensors.begin(); it != tensors.end(); it++) {
+    string t_name = it->first;
+    float bytes = product(it->second->dims()) * sizeof(float);
+    if (verbose > 1) {
+      cout << t_name << " with " << to_string(bytes / (1024.0f * 1024.0f))
+           << " MB." << endl;
+    }
+    tensor_md += bytes;
+  }
+  tensor_md /= (1024.0f * 1024.0f);
+  cout << "max memory if keeping all tensors at the same time: "
+       << to_string(tensor_md) << " MB." << endl;
+}
+
 inline vector<string>
 get_string_vector_from_proto(RepeatedPtrField<string> proto) {
   vector<string> string_vec;
