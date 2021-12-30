@@ -178,7 +178,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
     }
     _benchmark("", "");
     // compute costs
-    auto time_type = "total";
+    string time_type = "total";
     for (size_t d = 0; d < dev_names.size(); d++) {
       compute_costs_per_op.push_back(vector<float>());
       for (size_t opID = 0; opID < _operators.size(); opID++) {
@@ -205,7 +205,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
     }
     if (_devices.size() > 1) {
       cout << "measure copy costs ..." << endl;
-      vector<string> device_per_op;
+      auto device_per_op = vector<string>();
       do {
         _resetPrimitives();
         device_per_op = selectDevicePerOp(_operators, dev_names, _training);
@@ -336,7 +336,7 @@ void Network::_preprocessModel(onnx::ModelProto &model,
   }
   // remove Flatten operators, remove Dropout operators in non-training mode
   // mark as to-be-replaced
-  unordered_map<string, int> replace_info;
+  auto replace_info = unordered_map<string, int>();
   for (auto i = 0; i < nodes.size(); i++) {
     const auto type = nodes.at(i).op_type();
     replace_info[nodes.at(i).name()] =
@@ -391,9 +391,9 @@ void Network::_init(onnx::ModelProto &model,
     const auto type = node.op_type();
     const auto input = inputs[name];
     const auto output = outputs[name];
-    unordered_map<string, vector<memory::dim>> dim_parameters;
-    unordered_map<string, float> float_parameters;
-    unordered_map<string, int> int_parameters;
+    auto dim_parameters = unordered_map<string, vector<memory::dim>>();
+    auto float_parameters = unordered_map<string, float>();
+    auto int_parameters = unordered_map<string, int>();
     get_params_from_proto(node, dim_parameters, float_parameters,
                           int_parameters);
     if (type == "Flatten" || type == "Reshape" ||
@@ -665,7 +665,7 @@ float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
 }
 
 void Network::_Xpass(const int is_fwd_pass) {
-  vector<float> avg_times = vector<float>();
+  auto avg_times = vector<float>();
   size_t opID = 0, schedID = 0;
   int releaseOpID = 0, releaseSchedID = 0;
   auto inputs = vector<string>();
@@ -863,7 +863,7 @@ void Network::_unsetSchedule() {
 
 void Network::_scheduleOperatorMinTime(const size_t &opID, const string prefix,
                                        string &best_schedule) {
-  map<string, float> time_per_op;
+  auto time_per_op = map<string, float>();
   for (auto device = _devices.begin(); device != _devices.end(); device++) {
     auto dev_name = device->first;
     time_per_op[dev_name] = _getTimeOfOp(opID, prefix, "total");

@@ -24,7 +24,7 @@ string value2str(const float value) {
 
 vector<size_t> getUncoveredEdges(vector<pair<string, edge>> &edges,
                                  matrix &copy_costs) {
-  vector<size_t> edges_uncovered;
+  vector<size_t> edges_uncovered = vector<size_t>();
   size_t num_devices = copy_costs.get_cols();
   // Go through all copy costs and check if we forgot something
   for (size_t i = 0; i < edges.size(); i++) {
