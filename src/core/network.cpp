@@ -616,23 +616,13 @@ float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
   size_t num_executions = 10;
   size_t warmup_iterations = 5;
   dnnl_set_verbose(0);
-  for (size_t i = 0; i < warmup_iterations; i++) {
-    if (is_fwd_pass) {
-      op->forward(*dev.get(), tensors, out_tag, 0);
-      if (benchmark_mode) {
-        op->reset_fwd_primitives();
-      }
-    } else {
-      op->backward(*dev.get(), tensors, out_tag, 0);
-      if (benchmark_mode) {
-        op->reset_bwd_primitives();
-      }
-    }
-  }
   auto begin = get_time();
   int measure_time = 0;
-  for (size_t i = 0; i < num_executions; i++) {
-    if (i == num_executions - 1) {
+  for (size_t i = 0; i < warmup_iterations + num_executions; i++) {
+    if (i == warmup_iterations) {
+      begin = get_time();
+    }
+    if (i == warmup_iterations + num_executions - 1) {
       measure_time = 1;
       dnnl_set_verbose(verbose > 1);
     }
