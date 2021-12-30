@@ -1010,9 +1010,9 @@ void Network::_collectConsumerCopyCosts(const int opID, const int d,
       auto edgeID = getEdgeIndexFromName(edges, edgeName);
       // set copy costs from d -> to d_
       float c = copy_costs.at(edgeID, d, d_);
-      if (c == 0.0f) {
-        copy_costs.set(edgeID, d, d_, edgeCosts);
-      }
+      if (c > 0)
+        continue;
+      copy_costs.set(edgeID, d, d_, edgeCosts);
     }
   }
 }
