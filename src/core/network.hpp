@@ -86,7 +86,6 @@ private:
   int _measure_time;
   int _verbose;
   int _training;
-  int _benchmark_mode;
   int _opsToKeep;
   string _mode;
   string _name;

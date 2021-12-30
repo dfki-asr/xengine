@@ -16,8 +16,7 @@ Network::Network(const string name, const string model_file,
                  const string output_dir, const int verbose)
     : _name(name), _training(training), _schedule(nullptr),
       _output_dir(output_dir), _verbose(verbose), _measure_time(0),
-      _benchmark_mode(0), _opsToKeep(1),
-      _mode(training ? "training" : "inference") {
+      _opsToKeep(1), _mode(training ? "training" : "inference") {
   _devices = map<string, shared_ptr<Device>>();
   _tensors = unordered_map<string, shared_ptr<Tensor>>();
   _operators = vector<shared_ptr<Operator>>();
@@ -127,7 +126,6 @@ void Network::_reset_op_primitives() {
 void Network::benchmark(const string &data_path, const string &label_path) {
   // be sure to ignore any schedule
   _unsetSchedule();
-  _benchmark_mode = 1;
   // measure performance on all devices
   for (auto dev = _devices.begin(); dev != _devices.end(); dev++) {
     string dev_name = dev->first;
@@ -138,7 +136,6 @@ void Network::benchmark(const string &data_path, const string &label_path) {
     _setSchedule(sched);
     run(data_path, label_path, 1);
   }
-  _benchmark_mode = 0;
 }
 
 void Network::_computeMatrix2Schedule(matrix &R, const string &schedulefile) {
@@ -598,7 +595,7 @@ void Network::_release_tensors(vector<string> &tensor_names) {
 
 float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
             unordered_map<std::string, shared_ptr<Tensor>> &tensors,
-            memory::format_tag out_tag, int verbose, int benchmark_mode) {
+            memory::format_tag out_tag, int verbose) {
   size_t num_executions = 10;
   size_t warmup_iterations = 5;
   dnnl_set_verbose(0);
@@ -614,14 +611,10 @@ float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
     }
     if (is_fwd_pass) {
       op->forward(*dev.get(), tensors, out_tag, measure_time);
-      if (benchmark_mode) {
-        op->reset_fwd_primitives();
-      }
+      op->reset_fwd_primitives();
     } else {
       op->backward(*dev.get(), tensors, out_tag, measure_time);
-      if (benchmark_mode) {
-        op->reset_bwd_primitives();
-      }
+      op->reset_bwd_primitives();
     }
   }
   float avg_time = get_elapsed_ms(begin) / static_cast<float>(num_executions);
@@ -686,7 +679,7 @@ void Network::_Xpass(const int is_fwd_pass) {
     string time_type = "total";
     packaged_task<float(int, shared_ptr<Operator> &, shared_ptr<Device> &,
                         unordered_map<std::string, shared_ptr<Tensor>> &,
-                        memory::format_tag, int, int)>
+                        memory::format_tag, int)>
         task(runOP);
     auto future = task.get_future();
     thread thr(move(task), is_fwd_pass, std::ref(_operators.at(opID)),
