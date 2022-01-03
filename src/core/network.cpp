@@ -638,19 +638,17 @@ void Network::_fillInputTensors(const string &data_path,
 float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
             unordered_map<std::string, shared_ptr<Tensor>> &tensors,
             memory::format_tag out_tag, int verbose) {
-  size_t num_executions = 10;
-  size_t warmup_iterations = 5;
+  size_t num_executions = 50;
   dnnl_set_verbose(0);
   auto begin = get_time();
   int measure_time = 0;
-  for (size_t i = 0; i < warmup_iterations + num_executions; i++) {
-    if (i == warmup_iterations) {
-      begin = get_time();
-    }
-    if (i == warmup_iterations + num_executions - 1) {
+  auto runtimes = vector<float>();
+  for (size_t i = 0; i < num_executions; i++) {
+    if (i == num_executions - 1) {
       measure_time = 1;
       dnnl_set_verbose(verbose > 1);
     }
+    begin = get_time();
     if (is_fwd_pass) {
       op->forward(*dev.get(), tensors, out_tag, measure_time);
       op->reset_fwd_primitives();
@@ -658,14 +656,17 @@ float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
       op->backward(*dev.get(), tensors, out_tag, measure_time);
       op->reset_bwd_primitives();
     }
+    runtimes.push_back(get_elapsed_ms(begin));
   }
-  float avg_time = get_elapsed_ms(begin) / static_cast<float>(num_executions);
   dnnl_set_verbose(0);
-  return avg_time;
+  vector<float>::iterator median_time = runtimes.begin();
+  std::advance(median_time, runtimes.size() / 2);
+  std::nth_element(runtimes.begin(), median_time, runtimes.end());
+  return *median_time;
 }
 
 void Network::_Xpass(const int is_fwd_pass) {
-  auto avg_times = vector<float>();
+  auto opTimes = vector<float>();
   size_t opID = 0, schedID = 0;
   int releaseOpID = 0, releaseSchedID = 0;
   auto inputs = vector<string>();
@@ -717,8 +718,7 @@ void Network::_Xpass(const int is_fwd_pass) {
     _reinitTensors(inputs);
     auto e = _getExecuteOperator(schedID);
     auto out_tag = e.outputTag.to_dnnl();
-    float avg_time = 0.0f;
-    string time_type = "total";
+    float median_time = 0.0f;
     packaged_task<float(int, shared_ptr<Operator> &, shared_ptr<Device> &,
                         unordered_map<std::string, shared_ptr<Tensor>> &,
                         memory::format_tag, int)>
@@ -729,17 +729,16 @@ void Network::_Xpass(const int is_fwd_pass) {
                _verbose);
     if (future.wait_for(500s) != future_status::timeout) {
       thr.join();
-      // avg_time: average time in ms over last X executions
       if (future.valid()) {
-        avg_time = future.get();
+        median_time = future.get();
         string prefix = schedID < _operators.size() ? "fwd_" : "bwd_";
         // opTime:   time in ms of Xth (last) operator execution
-        float opTime = _getTimeOfOp(opID, prefix, time_type);
+        float opTime = _getTimeOfOp(opID, prefix, "total");
         if (_verbose > 1) {
           cout << _operators.at(opID)->type << ": " << opTime << " vs. "
-               << avg_time << endl;
+               << median_time << endl;
         }
-        avg_times.push_back(opTime);
+        opTimes.push_back(median_time);
       }
     } else {
       thr.detach();
@@ -747,15 +746,15 @@ void Network::_Xpass(const int is_fwd_pass) {
                                _operators.at(opID)->name + "_" + mode + "!");
     }
   }
-  float total_avg = accumulate(avg_times.begin(), avg_times.end(), 0.0);
+  float total_time = accumulate(opTimes.begin(), opTimes.end(), 0.0);
   if (_verbose > 0) {
-    printf("%s took %0.2lf ms in average.\n", mode.c_str(), total_avg);
+    printf("%s took %0.2lf ms.\n", mode.c_str(), total_time);
   }
   if (_verbose > 1) {
-    cout << "avg times: " << endl;
+    cout << "median times: " << endl;
     for (size_t opID = 0; opID < _operators.size(); opID++) {
       cout << "   " << mode << " " << _operators.at(opID)->name << ": "
-           << avg_times[opID] << endl;
+           << opTimes[opID] << endl;
     }
   }
 }
