@@ -651,12 +651,15 @@ float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
     begin = get_time();
     if (is_fwd_pass) {
       op->forward(*dev.get(), tensors, out_tag, measure_time);
-      op->reset_fwd_primitives();
     } else {
       op->backward(*dev.get(), tensors, out_tag, measure_time);
-      op->reset_bwd_primitives();
     }
     runtimes.push_back(get_elapsed_ms(begin));
+  }
+  if (is_fwd_pass) {
+    op->reset_fwd_primitives();
+  } else {
+    op->reset_bwd_primitives();
   }
   dnnl_set_verbose(0);
   vector<float>::iterator median_time = runtimes.begin();
