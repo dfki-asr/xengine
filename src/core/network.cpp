@@ -839,7 +839,8 @@ Network::_createScheduleStringVec(vector<string> &device_per_op) {
   return sched;
 }
 
-vector<vector<string>> Network::_createScheduleStringVec(string &device_name) {
+vector<vector<string>>
+Network::_createScheduleStringVec(const string device_name) {
   const int num_ops = _training ? 2 * _operators.size() : _operators.size();
   auto device_per_op = vector<string>(num_ops);
   fill(device_per_op.begin(), device_per_op.end(), device_name);

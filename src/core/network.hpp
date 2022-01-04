@@ -51,7 +51,7 @@ private:
   void _releaseTensors(vector<string> &tensor_names);
   void _resetPrimitives();
   /**************************************************************/
-  vector<vector<string>> _createScheduleStringVec(string &device_name);
+  vector<vector<string>> _createScheduleStringVec(const string device_name);
   vector<vector<string>>
   _createScheduleStringVec(vector<string> &device_per_op);
   void _setSchedule(vector<vector<string>> &sched);
