@@ -176,23 +176,8 @@ void Network::solveILP(const string mpsfile, const string logfile,
     if (_verbose > 0) {
       cout << "Benchmark ILP, aquire data ..." << endl;
     }
-    _benchmark("", "");
     // compute costs
-    string time_type = "total";
-    for (size_t d = 0; d < dev_names.size(); d++) {
-      compute_costs_per_op.push_back(vector<float>());
-      for (size_t opID = 0; opID < _operators.size(); opID++) {
-        compute_costs_per_op[d].push_back(
-            _getTimeOfOp(opID, "fwd_", time_type));
-      }
-      if (_training) {
-        for (size_t i = 0; i < _operators.size(); i++) {
-          auto opID = _operators.size() - i - 1;
-          compute_costs_per_op[d].push_back(
-              _getTimeOfOp(opID, "bwd_", time_type));
-        }
-      }
-    }
+    vector<vector<float>> compute_costs_per_op = _benchmark("", "");
     // memory costs
     for (size_t opID = 0; opID < _operators.size(); opID++) {
       memory_per_op.push_back(_operators.at(opID)->getFwdMemoryConsumption());
@@ -203,6 +188,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
         memory_per_op.push_back(_operators.at(opID)->getBwdMemoryConsumption());
       }
     }
+    _resetPrimitives();
     if (_devices.size() > 1) {
       cout << "measure copy costs ..." << endl;
       auto device_per_op = vector<string>();
@@ -668,7 +654,7 @@ float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
   return *median_time;
 }
 
-void Network::_Xpass(const int is_fwd_pass) {
+vector<float> Network::_Xpass(const int is_fwd_pass) {
   auto opTimes = vector<float>();
   size_t opID = 0, schedID = 0;
   int releaseOpID = 0, releaseSchedID = 0;
@@ -760,24 +746,32 @@ void Network::_Xpass(const int is_fwd_pass) {
            << opTimes[opID] << endl;
     }
   }
+  return opTimes;
 }
 
-void Network::_run(const string &data_path, const string &label_path,
-                   const size_t num_iterations) {
+vector<float> Network::_run(const string &data_path, const string &label_path,
+                            const size_t num_iterations) {
+  vector<float> opTimes;
   for (auto i = 0; i < num_iterations; i++) {
     _fillInputTensors(data_path, label_path, i);
-    _Xpass(1);
+    opTimes = _Xpass(1);
     if (_training) {
-      _Xpass(0);
+      auto opTimesBwd = _Xpass(0);
+      for (auto t : opTimesBwd) {
+        opTimes.push_back(t);
+      }
     }
   }
   _resetPrimitives();
   for (auto t = _tensors.begin(); t != _tensors.end(); t++) {
     t->second->release();
   }
+  return opTimes;
 }
 
-void Network::_benchmark(const string &data_path, const string &label_path) {
+vector<vector<float>> Network::_benchmark(const string &data_path,
+                                          const string &label_path) {
+  vector<vector<float>> compute_costs;
   // measure performance on all devices
   for (auto dev = _devices.begin(); dev != _devices.end(); dev++) {
     string dev_name = dev->first;
@@ -786,8 +780,10 @@ void Network::_benchmark(const string &data_path, const string &label_path) {
     }
     vector<vector<string>> sched = _createScheduleStringVec(dev_name);
     _setSchedule(sched);
-    _run(data_path, label_path, 1);
+    vector<float> opTimes = _run(data_path, label_path, 1);
+    compute_costs.push_back(opTimes);
   }
+  return compute_costs;
 }
 
 void Network::_reinitTensors(vector<string> &tensor_names) {

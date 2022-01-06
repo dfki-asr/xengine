@@ -43,10 +43,11 @@ private:
   void _fillInputTensors(const string &data_path, const string &label_path,
                          const size_t &batch);
   /**************************************************************/
-  void _Xpass(const int is_fwd_pass);
-  void _run(const string &data_path, const string &label_path,
-            const size_t num_iterations);
-  void _benchmark(const string &data_path, const string &label_path);
+  vector<float> _Xpass(const int is_fwd_pass);
+  vector<float> _run(const string &data_path, const string &label_path,
+                     const size_t num_iterations);
+  vector<vector<float>> _benchmark(const string &data_path,
+                                   const string &label_path);
   void _reinitTensors(vector<string> &tensor_names);
   void _releaseTensors(vector<string> &tensor_names);
   void _resetPrimitives();
