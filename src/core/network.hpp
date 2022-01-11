@@ -76,7 +76,7 @@ private:
                                  vector<pair<string, edge>> &edges,
                                  matrix &copy_costs);
   /**************************************************************/
-  string _name, _mode, _output_dir;
+  string _name, _mode, _output_dir, _memoryLogfile;
   map<string, shared_ptr<Device>> _devices;
   unordered_map<string, shared_ptr<Tensor>> _tensors;
   vector<shared_ptr<Operator>> _operators;

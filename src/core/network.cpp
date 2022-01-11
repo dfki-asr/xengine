@@ -22,6 +22,12 @@ Network::Network(const string name, const string model_file,
   _operators = vector<shared_ptr<Operator>>();
   _primitives = vector<unique_ptr<primitive>>();
   _primitive_args = vector<unordered_map<int, memory>>();
+  _memoryLogfile =
+      _output_dir + "/" + _name + "_" + _mode + "_memoryUsage_MiB.txt";
+  if (checkIfFileExists(_memoryLogfile)) {
+    string cmd = "rm " + _memoryLogfile;
+    system(cmd.c_str());
+  }
   createDevices(_devices, device_file);
   onnx::ModelProto model = loadModel(model_file);
   fillTensors(_tensors, model);
@@ -734,6 +740,8 @@ vector<float> Network::_Xpass(const int is_fwd_pass) {
       throw std::runtime_error("Timeout in operator " +
                                _operators.at(opID)->name + "_" + mode + "!");
     }
+    // measure memory usage after computing operator i
+    print_memory_usage(_memoryLogfile);
   }
   float total_time = accumulate(opTimes.begin(), opTimes.end(), 0.0);
   if (_verbose > 0) {
@@ -751,6 +759,7 @@ vector<float> Network::_Xpass(const int is_fwd_pass) {
 
 vector<float> Network::_run(const string &data_path, const string &label_path,
                             const size_t num_iterations) {
+  print_memory_usage(_memoryLogfile);
   vector<float> opTimes;
   for (auto i = 0; i < num_iterations; i++) {
     _fillInputTensors(data_path, label_path, i);
@@ -766,6 +775,7 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
   for (auto t = _tensors.begin(); t != _tensors.end(); t++) {
     t->second->release();
   }
+  print_memory_usage(_memoryLogfile);
   return opTimes;
 }
 
