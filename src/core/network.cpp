@@ -28,6 +28,7 @@ Network::Network(const string name, const string model_file,
     string cmd = "rm " + _memoryLogfile;
     system(cmd.c_str());
   }
+  print_memory_usage(_memoryLogfile);
   createDevices(_devices, device_file);
   onnx::ModelProto model = loadModel(model_file);
   fillTensors(_tensors, model);
