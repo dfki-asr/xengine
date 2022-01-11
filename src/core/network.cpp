@@ -44,9 +44,6 @@ Network::Network(const string name, const string model_file,
   }
   auto begin = get_time();
   _fillModelParameters(model);
-  for (auto t = _tensors.begin(); t != _tensors.end(); t++) {
-    t->second->release();
-  }
   const auto data_tensor_name = model.graph().input()[0].name();
   const auto labels_name = "labels";
   _tensors[data_tensor_name]->set_producer("external");
@@ -708,7 +705,6 @@ vector<float> Network::_Xpass(const int is_fwd_pass) {
         _releaseTensors(_operators.at(releaseOpID)->_f_op.output);
         _operators.at(releaseOpID)->reset_fwd_primitives();
       }
-      _releaseTensors(inputs);
     }
     // Compute
     _reinitTensors(inputs);
@@ -774,7 +770,9 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
   }
   _resetPrimitives();
   for (auto t = _tensors.begin(); t != _tensors.end(); t++) {
-    t->second->release();
+    if (t->second->producer() != "external") {
+      t->second->release();
+    }
   }
   print_memory_usage(_memoryLogfile);
   return opTimes;
