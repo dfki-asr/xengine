@@ -4,16 +4,30 @@ import argparse
 
 
 def readStringFile(txtfile, csvfile):
+    event_map = {
+        "init_program": "0",
+        "loaded_params": "1",
+        "fwd": "2",
+        "bwd": "3",
+        "finished_run": "4"
+    }
     with open(txtfile) as f:
-        csv_content = "x,y\n"
+        csv_content = "x,y,color\n"
         rows = f.readlines()
         startMemory = 0
         for rIdx, row in enumerate(rows):
+            cols = row.split(' ')
             if rIdx == 0:
-                startMemory = int(row)
+                startMemory = int(cols[0])
                 print("Subtract initial memory ", startMemory,
                       " MiB from all Y values.")
-            csv_content += str(rIdx) + "," + str(int(row) - startMemory) + "\n"
+            event = cols[1]
+            color = "0"
+            for n, c in event_map.items():
+                if n in event:
+                    color = c
+            csv_content += str(rIdx) + "," + str(
+                int(cols[0]) - startMemory) + "," + color + "\n"
         print(csv_content)
         file = open(csvfile, 'w')
         file.write(csv_content)

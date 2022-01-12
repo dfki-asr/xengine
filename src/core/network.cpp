@@ -28,7 +28,7 @@ Network::Network(const string name, const string model_file,
     string cmd = "rm " + _memoryLogfile;
     system(cmd.c_str());
   }
-  print_memory_usage(_memoryLogfile);
+  print_memory_usage(_memoryLogfile, "init_program");
   createDevices(_devices, device_file);
   onnx::ModelProto model = loadModel(model_file);
   fillTensors(_tensors, model);
@@ -738,7 +738,7 @@ vector<float> Network::_Xpass(const int is_fwd_pass) {
                                _operators.at(opID)->name + "_" + mode + "!");
     }
     // measure memory usage after computing operator i
-    print_memory_usage(_memoryLogfile);
+    print_memory_usage(_memoryLogfile, _operators.at(opID)->type + "_" + mode);
   }
   float total_time = accumulate(opTimes.begin(), opTimes.end(), 0.0);
   if (_verbose > 0) {
@@ -756,7 +756,7 @@ vector<float> Network::_Xpass(const int is_fwd_pass) {
 
 vector<float> Network::_run(const string &data_path, const string &label_path,
                             const size_t num_iterations) {
-  print_memory_usage(_memoryLogfile);
+  print_memory_usage(_memoryLogfile, "loaded_params");
   vector<float> opTimes;
   for (auto i = 0; i < num_iterations; i++) {
     _fillInputTensors(data_path, label_path, i);
@@ -774,7 +774,7 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
       t->second->release();
     }
   }
-  print_memory_usage(_memoryLogfile);
+  print_memory_usage(_memoryLogfile, "finished_run");
   return opTimes;
 }
 
