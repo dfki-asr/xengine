@@ -117,7 +117,7 @@ public:
       tensors[out_name]->init(src_md, eng);
       auto dst_mem = tensors[out_name]->get_memory();
       // reorders
-      auto s = stream(eng);
+      auto s = dev.get_stream(0);
       timings[time_name][src_name] = maybe_do_reorder(
           tensors[src_name]->get_memory(), src_mem, s, measure_time);
       // execute
@@ -155,7 +155,7 @@ public:
     tensors[out_diff_name]->init(src_md, eng);
     auto dst_mem = tensors[out_diff_name]->get_memory();
     // reorders
-    auto s = stream(eng);
+    auto s = dev.get_stream(0);
     timings[time_name][in_diff_name] = maybe_do_reorder(
         tensors[in_diff_name]->get_memory(), in_diff_mem, s, measure_time);
     auto time_exe = get_time();

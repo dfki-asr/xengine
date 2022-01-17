@@ -139,7 +139,7 @@ public:
     auto gamma_beta_dims = memory::dims(2, channels);
     auto gamma_beta_md = getDesc(gamma_beta_dims, memory::format_tag::nc);
     auto time_name = getForwardTimeName(eng);
-    auto s = stream(eng);
+    auto s = dev.get_stream(0);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       _fwd_context.reset(new BNFwdContext());
@@ -208,7 +208,7 @@ public:
     auto gamma_beta_md = getDesc(gamma_beta_dims, memory::format_tag::nc);
     auto gamma_beta_diff_md = getDesc(gamma_beta_dims, memory::format_tag::nc);
     auto time_name = getBackwardTimeName(eng);
-    auto s = stream(eng);
+    auto s = dev.get_stream(0);
     if (_bwd_context == nullptr) {
       auto time_create = get_time();
       _bwd_context.reset(new BNBwdContext());

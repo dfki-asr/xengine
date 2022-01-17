@@ -48,7 +48,7 @@ public:
       _fwd_context.reset(new AddFwdContext());
       timings[time_name]["create"] = get_elapsed_ms(time_create);
     }
-    auto s = stream(eng);
+    auto s = dev.get_stream(0);
     vector<memory::desc> src_descs;
     vector<float> scales;
     for (size_t i = 0; i < _f_op.input.size(); ++i) {
@@ -110,7 +110,7 @@ public:
     // get memory
     auto in_diff_mem = make_memory(src_a_md, eng);
     // reorders
-    auto s = stream(eng);
+    auto s = dev.get_stream(0);
     timings[time_name][in_diff_name] = maybe_do_reorder(
         tensors[in_diff_name]->get_memory(), in_diff_mem, s, measure_time);
     // execute

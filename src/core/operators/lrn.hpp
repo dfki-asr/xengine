@@ -121,7 +121,7 @@ public:
       timings[time_name]["create"] = get_elapsed_ms(time_create);
     }
     // reorders
-    auto s = stream(eng);
+    auto s = dev.get_stream(0);
     timings[time_name][src_name] =
         maybe_do_reorder(tensors[src_name]->get_memory(),
                          *_fwd_context->src_mem, s, measure_time);
@@ -188,7 +188,7 @@ public:
       timings[time_name]["create"] = get_elapsed_ms(time_create);
     }
     // reorders
-    auto s = stream(eng);
+    auto s = dev.get_stream(0);
     timings[time_name][src_name] =
         maybe_do_reorder(tensors[src_name]->get_memory(),
                          *_bwd_context->src_mem, s, measure_time);

@@ -123,7 +123,7 @@ public:
     auto batchsize = src_dims.at(0);
     auto channels = src_dims.at(1);
     auto time_name = getForwardTimeName(eng);
-    auto s = stream(eng);
+    auto s = dev.get_stream(0);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       _fwd_context.reset(new INFwdContext());

@@ -63,7 +63,7 @@ public:
     auto dst_md = getDesc(tensors[out_name]->dims());
     auto w_md = getDesc(tensors[w_name]->dims());
     auto time_name = getForwardTimeName(eng);
-    auto s = stream(eng);
+    auto s = dev.get_stream(0);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       _fwd_context.reset(new ConvTFwdContext());

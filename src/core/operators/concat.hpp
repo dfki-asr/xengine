@@ -136,7 +136,7 @@ public:
       _fwd_context.reset(new ConcatFwdContext());
       timings[time_name]["create"] = get_elapsed_ms(time_create);
     }
-    auto s = stream(eng);
+    auto s = dev.get_stream(0);
     vector<memory::desc> src_descs;
     for (size_t i = 0; i < _f_op.input.size(); ++i) {
       auto src_name = _f_op.input.at(i);
@@ -189,7 +189,7 @@ public:
     auto in_diff_name = _b_op.input.at(0);
     // get memory
     auto in_diff_mem = make_memory(tensors[in_diff_name]->desc(), eng);
-    auto s = stream(eng);
+    auto s = dev.get_stream(0);
     timings[time_name][in_diff_name] = maybe_do_reorder(
         tensors[in_diff_name]->get_memory(), in_diff_mem, s, measure_time);
     size_t offset = 0;
