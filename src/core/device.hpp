@@ -17,7 +17,7 @@ public:
       : Device(i.at(0), i.at(1), stoi(i.at(2)), stoi(i.at(3)), stoul(i.at(4))) {
   }
   Device(string n, string type, int devID, int num_streams, size_t b = 0)
-      : name(n), eng(nullptr) {
+      : name(n), eng(nullptr), memory_used(0) {
     if (num_streams < 0) {
       throw runtime_error(
           "Cannot create Device instance due to negative number of streams.");
@@ -125,5 +125,6 @@ public:
   unique_ptr<engine> eng;
   vector<unique_ptr<stream>> streams;
   float budget;
+  float memory_used;
 };
 #endif
