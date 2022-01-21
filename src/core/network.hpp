@@ -49,7 +49,7 @@ private:
   vector<vector<float>> _benchmark(const string &data_path,
                                    const string &label_path);
   void _reinitTensors(vector<string> &tensor_names);
-  void _releaseTensors(vector<string> &tensor_names);
+  void _releaseTensors(vector<string> &tensor_names, shared_ptr<Device> dev);
   void _resetPrimitives();
   /**************************************************************/
   vector<vector<string>> _createScheduleStringVec(const string device_name);

@@ -692,6 +692,7 @@ vector<float> Network::_Xpass(const int is_fwd_pass) {
     // Release
     if (schedID > _opsToKeep) {
       releaseSchedID = schedID - 2;
+      auto rel_e = _getExecuteOperator(releaseSchedID);
       releaseOpID = (releaseSchedID < _operators.size())
                         ? releaseSchedID
                         : 2 * _operators.size() - releaseSchedID - 1;
@@ -700,12 +701,15 @@ vector<float> Network::_Xpass(const int is_fwd_pass) {
              << to_string(releaseOpID) << ")" << endl;
       }
       if (releaseSchedID < _operators.size()) {
-        _releaseTensors(_operators.at(releaseOpID)->_f_op.output);
+        _releaseTensors(_operators.at(releaseOpID)->_f_op.output,
+                        _devices[rel_e.engineID]);
         _operators.at(releaseOpID)->reset_fwd_primitives();
       } else {
-        _releaseTensors(_operators.at(releaseOpID)->_b_op.output);
+        _releaseTensors(_operators.at(releaseOpID)->_b_op.output,
+                        _devices[rel_e.engineID]);
         _operators.at(releaseOpID)->reset_bwd_primitives();
-        _releaseTensors(_operators.at(releaseOpID)->_f_op.output);
+        _releaseTensors(_operators.at(releaseOpID)->_f_op.output,
+                        _devices[rel_e.engineID]);
         _operators.at(releaseOpID)->reset_fwd_primitives();
       }
     }
@@ -809,12 +813,16 @@ void Network::_reinitTensors(vector<string> &tensor_names) {
   }
 }
 
-void Network::_releaseTensors(vector<string> &tensor_names) {
+void Network::_releaseTensors(vector<string> &tensor_names,
+                              shared_ptr<Device> dev) {
   for (auto t : tensor_names) {
-    if (_verbose > 1) {
-      cout << "release " << _tensors[t]->name() << endl;
+    if (_tensors[t]->is_initialized()) {
+      if (_verbose > 1) {
+        cout << "release " << _tensors[t]->name() << endl;
+      }
+      dev->memory_used -= _tensors[t]->desc().get_size();
+      _tensors[t]->release();
     }
-    _tensors[t]->release();
   }
 }
 
