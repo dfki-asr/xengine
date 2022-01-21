@@ -580,6 +580,7 @@ void Network::_fillModelParameters(onnx::ModelProto &model) {
     _tensors[name]->set_memory(move(make_memory(
         desc, _devices["cpu_0"]->get_engine(), static_cast<void *>(raw_data))));
     _tensors[name]->set_producer("external");
+    _devices["cpu_0"]->memory_used += desc.get_size();
   }
 }
 
@@ -618,9 +619,11 @@ void Network::_fillInputTensors(const string &data_path,
   float *buffer = v_in.data();
   _tensors[data_tensor_name]->set_memory(move(make_memory(
       in_desc, _devices["cpu_0"]->get_engine(), static_cast<void *>(buffer))));
+  _devices["cpu_0"]->memory_used += in_desc.get_size();
   _tensors[labels_name]->set_memory(
       move(make_memory(l_desc, _devices["cpu_0"]->get_engine(),
                        static_cast<void *>(v_l.data()))));
+  _devices["cpu_0"]->memory_used += l_desc.get_size();
 }
 
 /**************************************************************/
