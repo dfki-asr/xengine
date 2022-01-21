@@ -30,6 +30,21 @@ struct BNFwdContext {
     fwd_pd.reset();
     batchnorm_fwd.reset();
   }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    if (src_mem != nullptr)
+      memory_used_bytes += src_mem->get_desc().get_size();
+    if (gamma_beta_mem != nullptr)
+      memory_used_bytes += gamma_beta_mem->get_desc().get_size();
+    if (mean_mem != nullptr)
+      memory_used_bytes += mean_mem->get_desc().get_size();
+    if (var_mem != nullptr)
+      memory_used_bytes += var_mem->get_desc().get_size();
+    if (dst_mem != nullptr)
+      memory_used_bytes += dst_mem->get_desc().get_size();
+    return memory_used_bytes;
+  }
 };
 
 struct BNBwdContext {
@@ -66,6 +81,29 @@ struct BNBwdContext {
     bwd_desc.reset();
     bwd_pd.reset();
     batchnorm_bwd.reset();
+  }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    if (in_diff_mem != nullptr)
+      memory_used_bytes += in_diff_mem->get_desc().get_size();
+    if (src_mem != nullptr)
+      memory_used_bytes += src_mem->get_desc().get_size();
+    if (gamma_beta_mem != nullptr)
+      memory_used_bytes += gamma_beta_mem->get_desc().get_size();
+    if (mean_mem != nullptr)
+      memory_used_bytes += mean_mem->get_desc().get_size();
+    if (var_mem != nullptr)
+      memory_used_bytes += var_mem->get_desc().get_size();
+    if (out_diff_mem != nullptr)
+      memory_used_bytes += out_diff_mem->get_desc().get_size();
+    if (gamma_diff_mem != nullptr)
+      memory_used_bytes += gamma_diff_mem->get_desc().get_size();
+    if (beta_diff_mem != nullptr)
+      memory_used_bytes += beta_diff_mem->get_desc().get_size();
+    if (gamma_beta_diff_mem != nullptr)
+      memory_used_bytes += gamma_beta_diff_mem->get_desc().get_size();
+    return memory_used_bytes;
   }
 };
 
@@ -169,6 +207,7 @@ public:
           maybe_do_reorder(tensors[var_name]->get_memory(),
                            *_fwd_context->var_mem, s, measure_time);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
+      dev.memory_used += _fwd_context->get_memory_used();
     }
     // reorders
     timings[time_name][src_name] =
@@ -257,6 +296,7 @@ public:
           maybe_do_reorder(tensors[var_name]->get_memory(),
                            *_bwd_context->var_mem, s, measure_time);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
+      dev.memory_used += _bwd_context->get_memory_used();
     }
     //  reorders
     timings[time_name][src_name] =

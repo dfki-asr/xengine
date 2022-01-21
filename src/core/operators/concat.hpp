@@ -19,6 +19,17 @@ struct ConcatFwdContext {
     fwd_pd.reset();
     concat_fwd.reset();
   }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    for (auto src : src_mem) {
+      if (src != nullptr)
+        memory_used_bytes += src->get_desc().get_size();
+    }
+    if (dst_mem != nullptr)
+      memory_used_bytes += dst_mem->get_desc().get_size();
+    return memory_used_bytes;
+  }
 };
 
 inline void concat_bwd(dnnl::memory &in_mem, dnnl::memory &out_mem,
@@ -160,6 +171,7 @@ public:
           new memory(_fwd_context->fwd_pd.get()->dst_desc(), eng));
       tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), eng);
       timings[time_name]["create"] += get_elapsed_ms(time_create);
+      dev.memory_used += _fwd_context->get_memory_used();
     }
     // reorders
     unordered_map<int, memory> args;

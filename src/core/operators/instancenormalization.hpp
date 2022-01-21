@@ -35,6 +35,25 @@ struct INFwdContext {
     fwd_pd.reset();
     instancenorm_fwd.reset();
   }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    if (src_mem != nullptr)
+      memory_used_bytes += src_mem->get_desc().get_size();
+    if (gamma_mem != nullptr)
+      memory_used_bytes += gamma_mem->get_desc().get_size();
+    if (beta_mem != nullptr)
+      memory_used_bytes += beta_mem->get_desc().get_size();
+    if (mean_mem != nullptr)
+      memory_used_bytes += mean_mem->get_desc().get_size();
+    if (var_mem != nullptr)
+      memory_used_bytes += var_mem->get_desc().get_size();
+    if (weights_mem != nullptr)
+      memory_used_bytes += weights_mem->get_desc().get_size();
+    if (dst_mem != nullptr)
+      memory_used_bytes += dst_mem->get_desc().get_size();
+    return memory_used_bytes;
+  }
 };
 
 struct INBwdContext {
@@ -70,6 +89,29 @@ struct INBwdContext {
     bwd_desc.reset();
     bwd_pd.reset();
     instancenorm_bwd.reset();
+  }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    if (in_diff_mem != nullptr)
+      memory_used_bytes += in_diff_mem->get_desc().get_size();
+    if (src_mem != nullptr)
+      memory_used_bytes += src_mem->get_desc().get_size();
+    if (gamma_mem != nullptr)
+      memory_used_bytes += gamma_mem->get_desc().get_size();
+    if (beta_mem != nullptr)
+      memory_used_bytes += beta_mem->get_desc().get_size();
+    if (mean_mem != nullptr)
+      memory_used_bytes += mean_mem->get_desc().get_size();
+    if (var_mem != nullptr)
+      memory_used_bytes += var_mem->get_desc().get_size();
+    if (weights_mem != nullptr)
+      memory_used_bytes += weights_mem->get_desc().get_size();
+    if (gamma_diff_mem != nullptr)
+      memory_used_bytes += gamma_diff_mem->get_desc().get_size();
+    if (out_diff_mem != nullptr)
+      memory_used_bytes += out_diff_mem->get_desc().get_size();
+    return memory_used_bytes;
   }
 };
 
@@ -166,6 +208,7 @@ public:
           maybe_do_reorder(tensors[var_name]->get_memory(),
                            *_fwd_context->var_mem, s, measure_time);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
+      dev.memory_used += _fwd_context->get_memory_used();
     }
     // reorders
     timings[time_name][src_name] =
@@ -208,6 +251,7 @@ public:
         _fwd_context->instancenorm_fwd.reset(
             new batch_normalization_forward(*_fwd_context->fwd_pd));
         timings[time_name]["create"] += get_elapsed_ms(time_create);
+        dev.memory_used += _fwd_context->get_memory_used();
       }
       auto const weights_mem = make_memory(
           _fwd_context->fwd_pd.get()->weights_desc(), eng, weights.data());
@@ -258,6 +302,7 @@ public:
         _fwd_context->instancenorm_fwd.reset(
             new batch_normalization_forward(*_fwd_context->fwd_pd));
         timings[time_name]["create"] += get_elapsed_ms(time_create);
+        dev.memory_used += _fwd_context->get_memory_used();
       }
       auto const weights_mem = make_memory(
           _fwd_context->fwd_pd.get()->weights_desc(), eng, weights.data());

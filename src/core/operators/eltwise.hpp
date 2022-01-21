@@ -23,6 +23,15 @@ struct EltwiseFwdContext {
     fwd_pd.reset();
     relu_fwd.reset();
   }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    if (src_mem != nullptr)
+      memory_used_bytes += src_mem->get_desc().get_size();
+    if (dst_mem != nullptr)
+      memory_used_bytes += dst_mem->get_desc().get_size();
+    return memory_used_bytes;
+  }
 };
 
 struct EltwiseBwdContext {
@@ -44,6 +53,17 @@ struct EltwiseBwdContext {
     bwd_desc.reset();
     bwd_pd.reset();
     relu_bwd.reset();
+  }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    if (in_diff_mem != nullptr)
+      memory_used_bytes += in_diff_mem->get_desc().get_size();
+    if (src_mem != nullptr)
+      memory_used_bytes += src_mem->get_desc().get_size();
+    if (out_diff_mem != nullptr)
+      memory_used_bytes += out_diff_mem->get_desc().get_size();
+    return memory_used_bytes;
   }
 };
 
@@ -99,6 +119,7 @@ public:
           new memory(_fwd_context->fwd_pd.get()->dst_desc(), eng));
       tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), eng);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
+      dev.memory_used += _fwd_context->get_memory_used();
     }
     // reorders
     auto s = dev.get_stream(0);
@@ -155,6 +176,7 @@ public:
           new memory(_bwd_context->bwd_pd.get()->src_desc(), eng));
       tensors[out_diff_name]->init(_bwd_context->bwd_pd.get()->src_desc(), eng);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
+      dev.memory_used += _bwd_context->get_memory_used();
     }
     // reorders
     auto s = dev.get_stream(0);

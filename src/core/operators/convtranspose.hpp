@@ -33,6 +33,21 @@ struct ConvTFwdContext {
     fwd_b_pd.reset();
     convT_fwd.reset();
   }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    if (src_mem != nullptr)
+      memory_used_bytes += src_mem->get_desc().get_size();
+    if (in_diff_mem != nullptr)
+      memory_used_bytes += in_diff_mem->get_desc().get_size();
+    if (weights_mem != nullptr)
+      memory_used_bytes += weights_mem->get_desc().get_size();
+    if (bias_mem != nullptr)
+      memory_used_bytes += bias_mem->get_desc().get_size();
+    if (dst_mem != nullptr)
+      memory_used_bytes += dst_mem->get_desc().get_size();
+    return memory_used_bytes;
+  }
 };
 class ConvTranspose : public Operator_With_Weights {
 public:
@@ -93,6 +108,7 @@ public:
           maybe_do_reorder(tensors[w_name]->get_memory(),
                            *_fwd_context->weights_mem, s, measure_time);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
+      dev.memory_used += _fwd_context->get_memory_used();
     }
     // reorders
     timings[time_name][src_name] =

@@ -26,6 +26,19 @@ struct GemmFwdContext {
     fwd_pd.reset();
     gemm_fwd.reset();
   }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    if (src_mem != nullptr)
+      memory_used_bytes += src_mem->get_desc().get_size();
+    if (weights_mem != nullptr)
+      memory_used_bytes += weights_mem->get_desc().get_size();
+    if (bias_mem != nullptr)
+      memory_used_bytes += bias_mem->get_desc().get_size();
+    if (dst_mem != nullptr)
+      memory_used_bytes += dst_mem->get_desc().get_size();
+    return memory_used_bytes;
+  }
 };
 
 struct GemmBwdContext {
@@ -66,6 +79,27 @@ struct GemmBwdContext {
     bwd_d_pd.reset();
     gemm_bwd_weights.reset();
     gemm_bwd_data.reset();
+  }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    if (in_diff_mem != nullptr)
+      memory_used_bytes += in_diff_mem->get_desc().get_size();
+    if (src_mem != nullptr)
+      memory_used_bytes += src_mem->get_desc().get_size();
+    if (weights_mem != nullptr)
+      memory_used_bytes += weights_mem->get_desc().get_size();
+    if (bias_mem != nullptr)
+      memory_used_bytes += bias_mem->get_desc().get_size();
+    if (in_diff_d_mem != nullptr)
+      memory_used_bytes += in_diff_d_mem->get_desc().get_size();
+    if (out_diff_mem != nullptr)
+      memory_used_bytes += out_diff_mem->get_desc().get_size();
+    if (w_diff_mem != nullptr)
+      memory_used_bytes += w_diff_mem->get_desc().get_size();
+    if (b_diff_mem != nullptr)
+      memory_used_bytes += b_diff_mem->get_desc().get_size();
+    return memory_used_bytes;
   }
 };
 
@@ -131,6 +165,7 @@ public:
                              *_fwd_context->bias_mem, s, measure_time);
       }
       timings[time_name]["create"] = get_elapsed_ms(time_create);
+      dev.memory_used += _fwd_context->get_memory_used();
     }
     // reorders
     timings[time_name][src_name] =
@@ -227,6 +262,7 @@ public:
         tensors[b_diff_name]->init(b_md, eng);
       }
       timings[time_name]["create"] = get_elapsed_ms(time_create);
+      dev.memory_used += _bwd_context->get_memory_used();
     }
     /*********************** Backward Weights *****************************/
     // reorders
