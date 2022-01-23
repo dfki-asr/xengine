@@ -11,12 +11,18 @@ class Tensor {
 public:
   Tensor(const string n, const memory::dims dims)
       : _name(n), _mem(nullptr), _dims(dims), _desc(memory::desc()),
-        _eng(dnnl::engine()), _producer(""), _consumers(vector<string>()) {}
+        _eng(dnnl::engine()), _device(nullptr), _producer(""),
+        _consumers(vector<string>()) {}
 
   Tensor(const string n, const memory::desc d, engine &e)
       : _name(n), _mem(nullptr), _dims(d.dims()), _desc(d), _eng(e),
-        _producer(""), _consumers(vector<string>()) {
+        _device(nullptr), _producer(""), _consumers(vector<string>()) {
     init(d, e);
+  }
+
+  void init(const memory::desc d, shared_ptr<Device> dev) {
+    _device = dev;
+    init(d, dev->get_engine());
   }
 
   void init(const memory::desc d, engine &e) {
@@ -27,12 +33,22 @@ public:
     _dims = d.dims();
     _desc = d;
     _eng = _mem->get_engine();
+    if (_device != nullptr) {
+      _device->memory_used += _mem->get_desc().get_size();
+    } else {
+      throw runtime_error("device is nullptr for tensor " + _name);
+    }
   }
 
   void reinit(const memory::desc d) { init(d, _eng); }
 
   void release() {
     if (is_initialized()) {
+      if (_device != nullptr) {
+        _device->memory_used -= _mem->get_desc().get_size();
+      } else {
+        throw runtime_error("device is nullptr for tensor " + _name);
+      }
       _mem.reset();
       _mem.release();
       _mem = nullptr;
@@ -60,11 +76,20 @@ public:
     }
   }
 
+  shared_ptr<Device> get_device() { return _device; }
+
+  void set_device(shared_ptr<Device> device) { _device = device; }
+
   void set_memory(const memory &mem) {
     if (is_initialized()) {
       release();
     }
     dnnl::engine eng = mem.get_engine();
+    if (_device != nullptr) {
+      _device->memory_used += mem.get_desc().get_size();
+    } else {
+      throw runtime_error("device is nullptr for tensor " + _name);
+    }
     size_t size = mem.get_desc().get_size() / sizeof(g_data_type);
     _mem = make_unique<memory>(move(make_memory(mem.get_desc(), eng)));
     _dims = _mem->get_desc().dims();
@@ -182,6 +207,7 @@ private:
   memory::dims _dims;
   memory::desc _desc;
   dnnl::engine _eng;
+  shared_ptr<Device> _device;
   string _producer;
   vector<string> _consumers;
 };
