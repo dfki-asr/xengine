@@ -67,10 +67,11 @@ public:
   ~ConvTranspose() { reset_fwd_primitives(); }
   void reset_fwd_primitives() { _fwd_context.reset(); }
 
-  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void forward(shared_ptr<Device> dev,
+               unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto src_name = _f_op.input.at(0);
     auto w_name = _f_op.input.at(1);
     auto out_name = _f_op.output.at(0);
@@ -78,7 +79,7 @@ public:
     auto dst_md = getDesc(tensors[out_name]->dims());
     auto w_md = getDesc(tensors[w_name]->dims());
     auto time_name = getForwardTimeName(eng);
-    auto s = dev.get_stream(0);
+    auto s = dev->get_stream(0);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       _fwd_context.reset(new ConvTFwdContext());
@@ -103,12 +104,12 @@ public:
           new memory(_fwd_context->fwd_b_pd.get()->weights_desc(), eng));
       _fwd_context->dst_mem.reset(
           new memory(_fwd_context->fwd_f_pd.get()->src_desc(), eng));
-      tensors[out_name]->init(_fwd_context->fwd_f_pd.get()->src_desc(), eng);
+      tensors[out_name]->init(_fwd_context->fwd_f_pd.get()->src_desc(), dev);
       timings[time_name][w_name] =
           maybe_do_reorder(tensors[w_name]->get_memory(),
                            *_fwd_context->weights_mem, s, measure_time);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
-      dev.memory_used += _fwd_context->get_memory_used();
+      dev->memory_used += _fwd_context->get_memory_used();
     }
     // reorders
     timings[time_name][src_name] =
@@ -131,7 +132,8 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void backward(shared_ptr<Device> dev,
+                unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     throw runtime_error("convTranspose backward not yet implemented!");
   }

@@ -88,11 +88,11 @@ public:
   }
   float getFwdMemoryConsumption() { return _f_op.memory_consumption; }
   float getBwdMemoryConsumption() { return _b_op.memory_consumption; }
-  virtual void forward(Device &dev,
+  virtual void forward(shared_ptr<Device> dev,
                        unordered_map<string, shared_ptr<Tensor>> &tensors,
                        memory::format_tag tag = memory::format_tag::any,
                        int measure_time = 0) = 0;
-  virtual void backward(Device &dev,
+  virtual void backward(shared_ptr<Device> dev,
                         unordered_map<string, shared_ptr<Tensor>> &tensors,
                         memory::format_tag tag = memory::format_tag::any,
                         int measure_time = 0) = 0;

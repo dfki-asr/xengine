@@ -159,10 +159,11 @@ public:
     return make_memory(gamma_beta_md, cpu_eng, cpu_gamma_beta_data.data());
   }
 
-  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void forward(shared_ptr<Device> dev,
+               unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     if (input.size() < 5) {
       throw runtime_error("BatchNormalization: too less inputs!");
     }
@@ -177,7 +178,7 @@ public:
     auto gamma_beta_dims = memory::dims(2, channels);
     auto gamma_beta_md = getDesc(gamma_beta_dims, memory::format_tag::nc);
     auto time_name = getForwardTimeName(eng);
-    auto s = dev.get_stream(0);
+    auto s = dev->get_stream(0);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       _fwd_context.reset(new BNFwdContext());
@@ -197,7 +198,7 @@ public:
       _fwd_context->var_mem.reset(new memory(tensors[var_name]->desc(), eng));
       _fwd_context->dst_mem.reset(
           new memory(_fwd_context->fwd_pd.get()->dst_desc(), eng));
-      tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), eng);
+      tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), dev);
       auto gamma_beta_mem = prepare_gamma_beta(gamma_beta_md, tensors);
       maybe_do_reorder(gamma_beta_mem, *_fwd_context->gamma_beta_mem, s, 0);
       timings[time_name][mean_name] =
@@ -207,7 +208,7 @@ public:
           maybe_do_reorder(tensors[var_name]->get_memory(),
                            *_fwd_context->var_mem, s, measure_time);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
-      dev.memory_used += _fwd_context->get_memory_used();
+      dev->memory_used += _fwd_context->get_memory_used();
     }
     // reorders
     timings[time_name][src_name] =
@@ -228,10 +229,11 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void backward(shared_ptr<Device> dev,
+                unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto src_name = _b_op.input.at(1);
     auto gamma_name = _b_op.input.at(2);
     auto beta_name = _b_op.input.at(3);
@@ -247,7 +249,7 @@ public:
     auto gamma_beta_md = getDesc(gamma_beta_dims, memory::format_tag::nc);
     auto gamma_beta_diff_md = getDesc(gamma_beta_dims, memory::format_tag::nc);
     auto time_name = getBackwardTimeName(eng);
-    auto s = dev.get_stream(0);
+    auto s = dev->get_stream(0);
     if (_bwd_context == nullptr) {
       auto time_create = get_time();
       _bwd_context.reset(new BNBwdContext());
@@ -279,14 +281,14 @@ public:
       _bwd_context->var_mem.reset(new memory(tensors[var_name]->desc(), eng));
       _bwd_context->gamma_diff_mem.reset(
           new memory(tensors[gamma_name]->desc(), eng));
-      tensors[gamma_diff_name]->init(tensors[gamma_name]->desc(), eng);
+      tensors[gamma_diff_name]->init(tensors[gamma_name]->desc(), dev);
       _bwd_context->beta_diff_mem.reset(
           new memory(tensors[beta_name]->desc(), eng));
-      tensors[beta_diff_name]->init(tensors[beta_name]->desc(), eng);
+      tensors[beta_diff_name]->init(tensors[beta_name]->desc(), dev);
       _bwd_context->gamma_beta_diff_mem.reset(
           new memory(gamma_beta_diff_md, eng));
       _bwd_context->out_diff_mem.reset(new memory(src_md, eng));
-      tensors[out_diff_name]->init(src_md, eng);
+      tensors[out_diff_name]->init(src_md, dev);
       auto gamma_beta_mem = prepare_gamma_beta(gamma_beta_md, tensors);
       maybe_do_reorder(gamma_beta_mem, *_bwd_context->gamma_beta_mem, s, 0);
       timings[time_name][mean_name] =
@@ -296,7 +298,7 @@ public:
           maybe_do_reorder(tensors[var_name]->get_memory(),
                            *_bwd_context->var_mem, s, measure_time);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
-      dev.memory_used += _bwd_context->get_memory_used();
+      dev->memory_used += _bwd_context->get_memory_used();
     }
     //  reorders
     timings[time_name][src_name] =

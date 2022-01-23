@@ -643,9 +643,9 @@ float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
     }
     begin = get_time();
     if (is_fwd_pass) {
-      op->forward(*dev.get(), tensors, out_tag, measure_time);
+      op->forward(dev, tensors, out_tag, measure_time);
     } else {
-      op->backward(*dev.get(), tensors, out_tag, measure_time);
+      op->backward(dev, tensors, out_tag, measure_time);
     }
     runtimes.push_back(get_elapsed_ms(begin));
   }

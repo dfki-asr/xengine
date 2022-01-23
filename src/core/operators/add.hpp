@@ -48,10 +48,11 @@ public:
   ~Add() { reset_fwd_primitives(); }
   void reset_fwd_primitives() { _fwd_context.reset(); }
 
-  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void forward(shared_ptr<Device> dev,
+               unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto out_name = _f_op.output.at(0);
     auto time_name = getForwardTimeName(eng);
     if (_fwd_context == nullptr) {
@@ -59,7 +60,7 @@ public:
       _fwd_context.reset(new AddFwdContext());
       timings[time_name]["create"] = get_elapsed_ms(time_create);
     }
-    auto s = dev.get_stream(0);
+    auto s = dev->get_stream(0);
     vector<memory::desc> src_descs;
     vector<float> scales;
     for (size_t i = 0; i < _f_op.input.size(); ++i) {
@@ -83,9 +84,9 @@ public:
       _fwd_context->add_fwd.reset(new sum(*_fwd_context->fwd_pd));
       _fwd_context->dst_mem.reset(
           new memory(_fwd_context->fwd_pd.get()->dst_desc(), eng));
-      tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), eng);
+      tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), dev);
       timings[time_name]["create"] += get_elapsed_ms(time_create);
-      dev.memory_used += _fwd_context->get_memory_used();
+      dev->memory_used += _fwd_context->get_memory_used();
     }
     // reorders
     unordered_map<int, memory> args;
@@ -107,10 +108,11 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void backward(shared_ptr<Device> dev,
+                unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto out_diff_a_name = _b_op.output.at(0);
     auto out_diff_b_name = _b_op.output.at(1);
     auto in_diff_name = _b_op.input.at(0);
@@ -122,12 +124,12 @@ public:
     // get memory
     auto in_diff_mem = make_memory(src_a_md, eng);
     // reorders
-    auto s = dev.get_stream(0);
+    auto s = dev->get_stream(0);
     timings[time_name][in_diff_name] = maybe_do_reorder(
         tensors[in_diff_name]->get_memory(), in_diff_mem, s, measure_time);
     // execute
-    tensors[out_diff_a_name]->init(src_a_md, eng);
-    tensors[out_diff_b_name]->init(src_b_md, eng);
+    tensors[out_diff_a_name]->init(src_a_md, dev);
+    tensors[out_diff_b_name]->init(src_b_md, dev);
     tensors[out_diff_a_name]->set_memory(in_diff_mem);
     tensors[out_diff_b_name]->set_memory(in_diff_mem);
     timings[time_name]["create"] = 0.0f;

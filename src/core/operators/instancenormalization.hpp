@@ -141,10 +141,11 @@ public:
   void reset_fwd_primitives() { _fwd_context.reset(); }
   void reset_bwd_primitives() { _bwd_context.reset(); }
 
-  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void forward(shared_ptr<Device> dev,
+               unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto src_name = _f_op.input.at(0);
     auto gamma_name = _f_op.input.at(1);
     auto beta_name = _f_op.input.at(2);
@@ -165,7 +166,7 @@ public:
     auto batchsize = src_dims.at(0);
     auto channels = src_dims.at(1);
     auto time_name = getForwardTimeName(eng);
-    auto s = dev.get_stream(0);
+    auto s = dev->get_stream(0);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       _fwd_context.reset(new INFwdContext());
@@ -175,18 +176,18 @@ public:
           new memory(tensors[gamma_name]->desc(), eng));
       _fwd_context->beta_mem.reset(new memory(tensors[beta_name]->desc(), eng));
       _fwd_context->dst_mem.reset(new memory(tensors[src_name]->desc(), eng));
-      tensors[out_name]->init(tensors[src_name]->desc(), eng);
+      tensors[out_name]->init(tensors[src_name]->desc(), dev);
       // maybe create statistic tensors
       auto stat_dims = memory::dims({batchsize, channels});
       auto stat_md =
           memory::desc(stat_dims, g_data_type, memory::format_tag::nc);
       if (_f_op.input.size() < 4) {
         tensors[mean_name] = move(make_shared<Tensor>(mean_name, stat_dims));
-        tensors[mean_name]->init(stat_md, eng);
+        tensors[mean_name]->init(stat_md, dev);
       }
       if (_f_op.input.size() < 5) {
         tensors[var_name] = move(make_shared<Tensor>(var_name, stat_dims));
-        tensors[var_name]->init(stat_md, eng);
+        tensors[var_name]->init(stat_md, dev);
       }
       if (_fwd_context->mean_mem == nullptr) {
         _fwd_context->mean_mem.reset(
@@ -208,7 +209,7 @@ public:
           maybe_do_reorder(tensors[var_name]->get_memory(),
                            *_fwd_context->var_mem, s, measure_time);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
-      dev.memory_used += _fwd_context->get_memory_used();
+      dev->memory_used += _fwd_context->get_memory_used();
     }
     // reorders
     timings[time_name][src_name] =
@@ -251,7 +252,7 @@ public:
         _fwd_context->instancenorm_fwd.reset(
             new batch_normalization_forward(*_fwd_context->fwd_pd));
         timings[time_name]["create"] += get_elapsed_ms(time_create);
-        dev.memory_used += _fwd_context->get_memory_used();
+        dev->memory_used += _fwd_context->get_memory_used();
       }
       auto const weights_mem = make_memory(
           _fwd_context->fwd_pd.get()->weights_desc(), eng, weights.data());
@@ -302,7 +303,7 @@ public:
         _fwd_context->instancenorm_fwd.reset(
             new batch_normalization_forward(*_fwd_context->fwd_pd));
         timings[time_name]["create"] += get_elapsed_ms(time_create);
-        dev.memory_used += _fwd_context->get_memory_used();
+        dev->memory_used += _fwd_context->get_memory_used();
       }
       auto const weights_mem = make_memory(
           _fwd_context->fwd_pd.get()->weights_desc(), eng, weights.data());
@@ -321,7 +322,8 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void backward(shared_ptr<Device> dev,
+                unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     throw runtime_error("InstanceNormalization is not yet implemented!");
   }

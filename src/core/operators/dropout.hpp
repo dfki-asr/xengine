@@ -102,10 +102,11 @@ public:
     init(tensors);
   }
 
-  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void forward(shared_ptr<Device> dev,
+               unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto time_exe = get_time();
     auto src_name = _f_op.input.at(0);
     auto out_name = _f_op.output.at(0);
@@ -114,10 +115,10 @@ public:
       auto src_md = tensors[src_name]->desc();
       // get memory
       auto src_mem = make_memory(src_md, eng);
-      tensors[out_name]->init(src_md, eng);
+      tensors[out_name]->init(src_md, dev);
       auto dst_mem = tensors[out_name]->get_memory();
       // reorders
-      auto s = dev.get_stream(0);
+      auto s = dev->get_stream(0);
       timings[time_name][src_name] = maybe_do_reorder(
           tensors[src_name]->get_memory(), src_mem, s, measure_time);
       // execute
@@ -141,10 +142,11 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void backward(shared_ptr<Device> dev,
+                unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto in_diff_name = _b_op.input.at(0);
     auto out_diff_name = _b_op.output.at(0);
     auto src_md = tensors[_f_op.input.at(0)]->desc();
@@ -152,10 +154,10 @@ public:
     auto time_name = getBackwardTimeName(eng);
     // get memory
     auto in_diff_mem = make_memory(src_md, eng);
-    tensors[out_diff_name]->init(src_md, eng);
+    tensors[out_diff_name]->init(src_md, dev);
     auto dst_mem = tensors[out_diff_name]->get_memory();
     // reorders
-    auto s = dev.get_stream(0);
+    auto s = dev->get_stream(0);
     timings[time_name][in_diff_name] = maybe_do_reorder(
         tensors[in_diff_name]->get_memory(), in_diff_mem, s, measure_time);
     auto time_exe = get_time();

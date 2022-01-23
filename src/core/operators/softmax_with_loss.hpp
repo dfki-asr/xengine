@@ -103,10 +103,11 @@ public:
   void reset_fwd_primitives() { _fwd_context.reset(); }
   void reset_bwd_primitives() { _bwd_context.reset(); }
 
-  void forward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void forward(shared_ptr<Device> dev,
+               unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto src_name = _f_op.input.at(0);
     auto out_name = _f_op.output.at(0);
     auto labels_name = _f_op.input.at(1);
@@ -130,15 +131,15 @@ public:
           new memory(tensors[labels_name]->desc(), eng));
       _fwd_context->dst_mem.reset(
           new memory(_fwd_context->fwd_pd.get()->dst_desc(), eng));
-      tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), eng);
+      tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), dev);
       _fwd_context->loss_mem.reset(
           new memory(tensors[labels_name]->desc(), eng));
-      tensors[loss_name]->init(tensors[labels_name]->desc(), eng);
+      tensors[loss_name]->init(tensors[labels_name]->desc(), dev);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
-      dev.memory_used += _fwd_context->get_memory_used();
+      dev->memory_used += _fwd_context->get_memory_used();
     }
     // reorders
-    auto s = dev.get_stream(0);
+    auto s = dev->get_stream(0);
     timings[time_name][src_name] =
         maybe_do_reorder(tensors[src_name]->get_memory(),
                          *_fwd_context->src_mem, s, measure_time);
@@ -158,10 +159,11 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, shared_ptr<Tensor>> &tensors,
+  void backward(shared_ptr<Device> dev,
+                unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto src_name = _b_op.input.at(1);
     auto out_name = _f_op.output.at(0);
     auto labels_name = _b_op.input.at(2);
@@ -194,12 +196,12 @@ public:
           new memory(_bwd_context->bwd_pd.get()->dst_desc(), eng));
       _bwd_context->labels_mem.reset(new memory(l_md, eng));
       _bwd_context->out_diff_mem.reset(new memory(src_md, eng));
-      tensors[out_diff_name]->init(src_md, eng);
+      tensors[out_diff_name]->init(src_md, dev);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
-      dev.memory_used += _bwd_context->get_memory_used();
+      dev->memory_used += _bwd_context->get_memory_used();
     }
     // reorders
-    auto s = dev.get_stream(0);
+    auto s = dev->get_stream(0);
     timings[time_name][src_name] =
         maybe_do_reorder(tensors[src_name]->get_memory(),
                          *_bwd_context->src_mem, s, measure_time);
