@@ -181,7 +181,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
       cout << "Benchmark ILP, aquire data ..." << endl;
     }
     // compute costs
-    vector<vector<float>> compute_costs_per_op = _benchmark("", "");
+    compute_costs_per_op = _benchmark("", "");
     // memory costs
     for (size_t opID = 0; opID < _operators.size(); opID++) {
       memory_per_op.push_back(_operators.at(opID)->getFwdMemoryConsumption());

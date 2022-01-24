@@ -81,6 +81,9 @@ ILP_Solver::ILP_Solver(string model_name, string mpsfile, string logfile,
   _F_matrix = nullptr;
   _verbose = verbose;
   // init
+  if (_compute_costs.size() < 1) {
+    throw runtime_error("invalid compute costs!");
+  }
   const size_t T = _compute_costs[0].size();
   const size_t E = _edges.size();
   const size_t D = _devices.size();
