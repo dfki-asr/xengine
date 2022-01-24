@@ -31,25 +31,20 @@ struct ConvFwdContext {
     size_t memory_used_bytes = 0;
     if (src_mem != nullptr) {
       size_t bytes = src_mem->get_desc().get_size();
-      cout << "add src " << bytes << endl;
       memory_used_bytes += src_mem->get_desc().get_size();
     }
     if (weights_mem != nullptr) {
       size_t bytes = weights_mem->get_desc().get_size();
-      cout << "add W " << bytes << endl;
       memory_used_bytes += bytes;
     }
     if (bias_mem != nullptr) {
       size_t bytes = bias_mem->get_desc().get_size();
-      cout << "add B " << bytes << endl;
       memory_used_bytes += bytes;
     }
     if (dst_mem != nullptr) {
       size_t bytes = dst_mem->get_desc().get_size();
-      cout << "add dst " << bytes << endl;
       memory_used_bytes += dst_mem->get_desc().get_size();
     }
-    cout << "ConvFwd: memory_used_bytes: " << memory_used_bytes << endl;
     return memory_used_bytes;
   }
 };
