@@ -778,10 +778,20 @@ vector<float> Network::_Xpass(const int is_fwd_pass) {
 
 vector<float> Network::_run(const string &data_path, const string &label_path,
                             const size_t num_iterations) {
+  _fillInputTensors(data_path, label_path, 0);
+  for (auto t = _tensors.begin(); t != _tensors.end(); t++) {
+    if (t->second->producer() == "external") {
+      auto consumers = t->second->consumers();
+      if (consumers.size() > 0) {
+        auto consumerSchedID = getOpIndexFromName(_operators, consumers[0]);
+        auto e = _getExecuteOperator(consumerSchedID);
+        t->second->init(t->second->desc(), _devices[e.engineID]);
+      }
+    }
+  }
   _print_memory_usage(_memoryLogfile, "loaded_params");
   vector<float> opTimes;
   for (auto i = 0; i < num_iterations; i++) {
-    _fillInputTensors(data_path, label_path, i);
     opTimes = _Xpass(1);
     if (_training) {
       auto opTimesBwd = _Xpass(0);
@@ -792,9 +802,7 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
   }
   _resetPrimitives();
   for (auto t = _tensors.begin(); t != _tensors.end(); t++) {
-    if (t->second->producer() != "external") {
-      t->second->release();
-    }
+    t->second->release();
   }
   _print_memory_usage(_memoryLogfile, "finished_run");
   return opTimes;
