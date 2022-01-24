@@ -46,11 +46,17 @@ public:
     init(tensors);
   }
   ~Add() { reset_fwd_primitives(); }
-  void reset_fwd_primitives() { _fwd_context.reset(); }
+  void reset_fwd_primitives() {
+    if (_f_device != nullptr && _fwd_context != nullptr) {
+      _f_device->memory_used -= _fwd_context->get_memory_used();
+    }
+    _fwd_context.reset();
+  }
 
   void forward(shared_ptr<Device> dev,
                unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
+    _f_device = dev;
     auto begin = get_time();
     auto eng = dev->get_engine();
     auto out_name = _f_op.output.at(0);
@@ -111,6 +117,7 @@ public:
   void backward(shared_ptr<Device> dev,
                 unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
+    _b_device = dev;
     auto begin = get_time();
     auto eng = dev->get_engine();
     auto out_diff_a_name = _b_op.output.at(0);

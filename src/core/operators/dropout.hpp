@@ -105,6 +105,7 @@ public:
   void forward(shared_ptr<Device> dev,
                unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
+    _f_device = dev;
     auto begin = get_time();
     auto eng = dev->get_engine();
     auto time_exe = get_time();
@@ -145,6 +146,7 @@ public:
   void backward(shared_ptr<Device> dev,
                 unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
+    _b_device = dev;
     auto begin = get_time();
     auto eng = dev->get_engine();
     auto in_diff_name = _b_op.input.at(0);

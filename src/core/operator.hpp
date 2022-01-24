@@ -33,7 +33,8 @@ class Operator {
 public:
   Operator(string n, string t, vector<string> i, vector<string> o,
            unordered_map<string, shared_ptr<Tensor>> &tensors, int train)
-      : name(n), type(t), input(i), output(o), training(train) {}
+      : name(n), type(t), input(i), output(o), training(train),
+        _f_device(nullptr), _b_device(nullptr) {}
   string name;
   string type;
   int training;
@@ -43,6 +44,8 @@ public:
   unordered_map<string, float> memory_consumption;
   ExecutionOp _f_op;
   ExecutionOp _b_op;
+  shared_ptr<Device> _f_device;
+  shared_ptr<Device> _b_device;
   string getForwardTimeName(const engine &eng) {
     return "fwd_" + getDeviceName(eng);
   }

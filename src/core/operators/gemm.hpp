@@ -116,12 +116,23 @@ public:
     reset_fwd_primitives();
     reset_bwd_primitives();
   }
-  void reset_fwd_primitives() { _fwd_context.reset(); }
-  void reset_bwd_primitives() { _bwd_context.reset(); }
+  void reset_fwd_primitives() {
+    if (_f_device != nullptr && _fwd_context != nullptr) {
+      _f_device->memory_used -= _fwd_context->get_memory_used();
+    }
+    _fwd_context.reset();
+  }
+  void reset_bwd_primitives() {
+    if (_b_device != nullptr && _bwd_context != nullptr) {
+      _b_device->memory_used -= _bwd_context->get_memory_used();
+    }
+    _bwd_context.reset();
+  }
 
   void forward(shared_ptr<Device> dev,
                unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
+    _f_device = dev;
     auto begin = get_time();
     auto eng = dev->get_engine();
     auto src_name = _f_op.input.at(0);
@@ -192,6 +203,7 @@ public:
   void backward(shared_ptr<Device> dev,
                 unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
+    _b_device = dev;
     auto begin = get_time();
     auto eng = dev->get_engine();
     auto src_name = _b_op.input.at(1);
