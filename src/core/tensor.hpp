@@ -21,6 +21,9 @@ public:
   }
 
   void init(const memory::desc d, shared_ptr<Device> dev) {
+    if (is_initialized()) {
+      release();
+    }
     _device = dev;
     init(d, dev->get_engine());
   }
