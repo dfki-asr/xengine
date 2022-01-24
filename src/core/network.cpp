@@ -23,13 +23,13 @@ Network::Network(const string name, const string model_file,
   _primitives = vector<unique_ptr<primitive>>();
   _primitive_args = vector<unordered_map<int, memory>>();
   _memoryLogfile =
-      _output_dir + "/" + _name + "_" + _mode + "_memoryUsage_MiB.txt";
+      _output_dir + "/" + _name + "_" + _mode + "_memory_used_bytes.txt";
   if (checkIfFileExists(_memoryLogfile)) {
     string cmd = "rm " + _memoryLogfile;
     system(cmd.c_str());
   }
-  print_memory_usage(_memoryLogfile, "init_program");
   createDevices(_devices, device_file);
+  _print_memory_usage(_memoryLogfile, "init_program");
   onnx::ModelProto model = loadModel(model_file);
   fillTensors(_tensors, model);
   auto inputs = unordered_map<string, vector<string>>();
@@ -629,6 +629,22 @@ void Network::_fillInputTensors(const string &data_path,
                        static_cast<void *>(v_l.data()))));
 }
 
+void Network::_print_memory_usage(const string memory_file = "",
+                                  const string event_info = "") {
+  string memory_usage = "";
+  for (auto dev : _devices) {
+    memory_usage +=
+        to_string(static_cast<size_t>(dev.second->memory_used)) + ",";
+  }
+  memory_usage += event_info;
+  if (!memory_file.empty()) {
+    string cmd = "echo " + memory_usage + " >> " + memory_file;
+    system(cmd.c_str());
+  } else {
+    cout << memory_usage << endl;
+  }
+}
+
 /**************************************************************/
 
 float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
@@ -713,8 +729,8 @@ vector<float> Network::_Xpass(const int is_fwd_pass) {
       }
     }
     // Compute
-    _reinitTensors(inputs);
     auto e = _getExecuteOperator(schedID);
+    _reinitTensors(inputs);
     auto out_tag = e.outputTag.to_dnnl();
     float median_time = 0.0f;
     packaged_task<float(int, shared_ptr<Operator> &, shared_ptr<Device> &,
@@ -744,7 +760,7 @@ vector<float> Network::_Xpass(const int is_fwd_pass) {
                                _operators.at(opID)->name + "_" + mode + "!");
     }
     // measure memory usage after computing operator i
-    print_memory_usage(_memoryLogfile, _operators.at(opID)->type + "_" + mode);
+    _print_memory_usage(_memoryLogfile, _operators.at(opID)->type + "_" + mode);
   }
   float total_time = accumulate(opTimes.begin(), opTimes.end(), 0.0);
   if (_verbose > 0) {
@@ -762,7 +778,7 @@ vector<float> Network::_Xpass(const int is_fwd_pass) {
 
 vector<float> Network::_run(const string &data_path, const string &label_path,
                             const size_t num_iterations) {
-  print_memory_usage(_memoryLogfile, "loaded_params");
+  _print_memory_usage(_memoryLogfile, "loaded_params");
   vector<float> opTimes;
   for (auto i = 0; i < num_iterations; i++) {
     _fillInputTensors(data_path, label_path, i);
@@ -780,7 +796,7 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
       t->second->release();
     }
   }
-  print_memory_usage(_memoryLogfile, "finished_run");
+  _print_memory_usage(_memoryLogfile, "finished_run");
   return opTimes;
 }
 
