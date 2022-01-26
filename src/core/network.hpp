@@ -44,7 +44,6 @@ private:
                          const size_t &batch);
   void _print_memory_usage(const string memory_file, const string event_info);
   /**************************************************************/
-  vector<float> _Xpass(const int is_fwd_pass);
   vector<float> _run(const string &data_path, const string &label_path,
                      const size_t num_iterations);
   vector<vector<float>> _benchmark(const string &data_path,

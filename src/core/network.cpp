@@ -679,102 +679,6 @@ float runOP(int is_fwd_pass, shared_ptr<Operator> &op, shared_ptr<Device> &dev,
   return *median_time;
 }
 
-vector<float> Network::_Xpass(const int is_fwd_pass) {
-  auto opTimes = vector<float>();
-  size_t opID = 0, schedID = 0;
-  int releaseOpID = 0, releaseSchedID = 0;
-  auto inputs = vector<string>();
-  auto outputs = vector<string>();
-  auto release_outputs = vector<string>();
-  string mode = "";
-  for (size_t j = 0; j < _operators.size(); j++) {
-    if (is_fwd_pass) {
-      opID = j;
-      schedID = j;
-      inputs = _operators.at(opID)->_f_op.input;
-      outputs = _operators.at(opID)->_f_op.output;
-      mode = "fwd";
-    } else {
-      opID = _operators.size() - j - 1;
-      schedID = _operators.size() + j;
-      inputs = _operators.at(opID)->_b_op.input;
-      outputs = _operators.at(opID)->_b_op.output;
-      mode = "bwd";
-    }
-    if (_verbose > 1) {
-      cout << "compute " << to_string(schedID) << " "
-           << _operators.at(opID)->name << " (" << _operators.at(opID)->type
-           << ")"
-           << " " << mode << endl;
-    }
-    // Release
-    if (schedID > _opsToKeep) {
-      releaseSchedID = schedID - 2;
-      releaseOpID = (releaseSchedID < _operators.size())
-                        ? releaseSchedID
-                        : 2 * _operators.size() - releaseSchedID - 1;
-      if (_verbose > 1) {
-        cout << "free " << to_string(releaseSchedID) << " (OpID "
-             << to_string(releaseOpID) << ")" << endl;
-      }
-      if (releaseSchedID < _operators.size()) {
-        _releaseTensors(_operators.at(releaseOpID)->_f_op.output);
-        _operators.at(releaseOpID)->reset_fwd_primitives();
-      } else {
-        _releaseTensors(_operators.at(releaseOpID)->_b_op.output);
-        _operators.at(releaseOpID)->reset_bwd_primitives();
-        _releaseTensors(_operators.at(releaseOpID)->_f_op.output);
-        _operators.at(releaseOpID)->reset_fwd_primitives();
-      }
-    }
-    // Compute
-    auto e = _getExecuteOperator(schedID);
-    _reinitTensors(inputs);
-    auto out_tag = e.outputTag.to_dnnl();
-    float median_time = 0.0f;
-    packaged_task<float(int, shared_ptr<Operator> &, shared_ptr<Device> &,
-                        unordered_map<std::string, shared_ptr<Tensor>> &,
-                        memory::format_tag, int)>
-        task(runOP);
-    auto future = task.get_future();
-    thread thr(move(task), is_fwd_pass, std::ref(_operators.at(opID)),
-               std::ref(_devices[e.engineID]), std::ref(_tensors), out_tag,
-               _verbose);
-    if (future.wait_for(500s) != future_status::timeout) {
-      thr.join();
-      if (future.valid()) {
-        median_time = future.get();
-        string prefix = schedID < _operators.size() ? "fwd_" : "bwd_";
-        // opTime:   time in ms of Xth (last) operator execution
-        float opTime = _getTimeOfOp(opID, prefix, "total");
-        if (_verbose > 1) {
-          cout << _operators.at(opID)->type << ": " << opTime << " vs. "
-               << median_time << endl;
-        }
-        opTimes.push_back(median_time);
-      }
-    } else {
-      thr.detach();
-      throw std::runtime_error("Timeout in operator " +
-                               _operators.at(opID)->name + "_" + mode + "!");
-    }
-    // measure memory usage after computing operator i
-    _print_memory_usage(_memoryLogfile, _operators.at(opID)->type + "_" + mode);
-  }
-  float total_time = accumulate(opTimes.begin(), opTimes.end(), 0.0);
-  if (_verbose > 0) {
-    printf("%s took %0.2lf ms.\n", mode.c_str(), total_time);
-  }
-  if (_verbose > 1) {
-    cout << "median times: " << endl;
-    for (size_t opID = 0; opID < _operators.size(); opID++) {
-      cout << "   " << mode << " " << _operators.at(opID)->name << ": "
-           << opTimes[opID] << endl;
-    }
-  }
-  return opTimes;
-}
-
 vector<float> Network::_run(const string &data_path, const string &label_path,
                             const size_t num_iterations) {
   _fillInputTensors(data_path, label_path, 0);
@@ -789,16 +693,95 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
     }
   }
   _print_memory_usage(_memoryLogfile, "loaded_params");
-  vector<float> opTimes;
+
+  auto opTimes = vector<float>();
+  size_t T = _training ? 2 * _operators.size() : _operators.size();
+
   for (auto i = 0; i < num_iterations; i++) {
-    opTimes = _Xpass(1);
-    if (_training) {
-      auto opTimesBwd = _Xpass(0);
-      for (auto t : opTimesBwd) {
-        opTimes.push_back(t);
+    for (size_t j = 0; j < T; j++) {
+      size_t schedID = j;
+      // Release
+      if (schedID > _opsToKeep) {
+        size_t releaseSchedID = schedID - 2;
+        size_t releaseOpID = (releaseSchedID < _operators.size())
+                                 ? releaseSchedID
+                                 : 2 * _operators.size() - releaseSchedID - 1;
+        if (_verbose > 1) {
+          cout << "free " << to_string(releaseSchedID) << " (OpID "
+               << to_string(releaseOpID) << ")" << endl;
+        }
+        if (releaseSchedID < _operators.size()) {
+          _releaseTensors(_operators.at(releaseOpID)->_f_op.output);
+          _operators.at(releaseOpID)->reset_fwd_primitives();
+        } else {
+          _releaseTensors(_operators.at(releaseOpID)->_b_op.output);
+          _operators.at(releaseOpID)->reset_bwd_primitives();
+          _releaseTensors(_operators.at(releaseOpID)->_f_op.output);
+          _operators.at(releaseOpID)->reset_fwd_primitives();
+        }
       }
+      // Compute
+      auto is_fwd_pass = j < _operators.size();
+      string mode = is_fwd_pass ? "fwd" : "bwd";
+      size_t opID = is_fwd_pass ? j : 2 * _operators.size() - j - 1;
+      auto inputs = is_fwd_pass ? _operators.at(opID)->_f_op.input
+                                : _operators.at(opID)->_b_op.input;
+      auto outputs = is_fwd_pass ? _operators.at(opID)->_f_op.output
+                                 : _operators.at(opID)->_b_op.output;
+      if (_verbose > 1) {
+        cout << "compute " << to_string(schedID) << " "
+             << _operators.at(opID)->name << " (" << _operators.at(opID)->type
+             << ")"
+             << " " << mode << endl;
+      }
+      auto e = _getExecuteOperator(schedID);
+      _reinitTensors(inputs);
+      auto out_tag = e.outputTag.to_dnnl();
+      float median_time = 0.0f;
+      packaged_task<float(int, shared_ptr<Operator> &, shared_ptr<Device> &,
+                          unordered_map<std::string, shared_ptr<Tensor>> &,
+                          memory::format_tag, int)>
+          task(runOP);
+      auto future = task.get_future();
+      thread thr(move(task), is_fwd_pass, std::ref(_operators.at(opID)),
+                 std::ref(_devices[e.engineID]), std::ref(_tensors), out_tag,
+                 _verbose);
+      if (future.wait_for(500s) != future_status::timeout) {
+        thr.join();
+        if (future.valid()) {
+          median_time = future.get();
+          string prefix = schedID < _operators.size() ? "fwd_" : "bwd_";
+          // opTime:   time in ms of Xth (last) operator execution
+          float opTime = _getTimeOfOp(opID, prefix, "total");
+          if (_verbose > 1) {
+            cout << _operators.at(opID)->type << ": " << opTime << " vs. "
+                 << median_time << endl;
+          }
+          opTimes.push_back(median_time);
+        }
+      } else {
+        thr.detach();
+        throw std::runtime_error("Timeout in operator " +
+                                 _operators.at(opID)->name + "_" + mode + "!");
+      }
+      // measure memory usage after computing operator i
+      _print_memory_usage(_memoryLogfile,
+                          _operators.at(opID)->type + "_" + mode);
     }
   }
+
+  float total_time = accumulate(opTimes.begin(), opTimes.end(), 0.0);
+  if (_verbose > 0) {
+    printf("run took %0.2lf ms.\n", total_time);
+  }
+  if (_verbose > 1) {
+    cout << "median times: " << endl;
+    for (size_t opID = 0; opID < _operators.size(); opID++) {
+      cout << "   " << _operators.at(opID)->name << ": " << opTimes[opID]
+           << endl;
+    }
+  }
+
   _resetPrimitives();
   for (auto t = _tensors.begin(); t != _tensors.end(); t++) {
     t->second->release();
