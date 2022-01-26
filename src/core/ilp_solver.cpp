@@ -124,6 +124,7 @@ ILP_Solver::~ILP_Solver() {
 
 matrix ILP_Solver::get_R() { return *_R_matrix; }
 matrix ILP_Solver::get_S() { return *_S_matrix; }
+matrix ILP_Solver::get_F() { return *_F_matrix; }
 double ILP_Solver::get_minimal_compute_costs() { return _objective_value; }
 double ILP_Solver::get_minimal_memory() { return _minimal_memory; }
 double ILP_Solver::get_maximal_memory() { return _maximal_memory; }

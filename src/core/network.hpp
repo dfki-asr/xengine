@@ -66,7 +66,7 @@ private:
   ExecuteOperator _getExecuteOperator(const int ID);
   float _getTimeOfOp(const int opID, const string prefix,
                      const string time_type);
-  void _computeMatrix2Schedule(matrix &R, const string &schedulefile);
+  void _ilpMatrices2Schedule(const string &schedulefile);
   /**************************************************************/
   void _fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
                       vector<pair<string, edge>> &edges);
@@ -83,6 +83,7 @@ private:
   vector<unique_ptr<primitive>> _primitives;
   vector<unordered_map<int, memory>> _primitive_args;
   unique_ptr<Schedule> _schedule;
+  matrix _R, _S, _F;
   int _training;
   int _verbose, _measure_time, _opsToKeep;
 };

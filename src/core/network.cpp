@@ -119,14 +119,15 @@ void Network::solveILP(const string mpsfile, const string logfile,
   cout << "solve ILP ..." << endl;
   ilp->solve();
   ilp->printResults();
-  matrix R = ilp->get_R();
+  _R = ilp->get_R();
+  _S = ilp->get_S();
+  _F = ilp->get_F();
   string budget_str =
       to_string(static_cast<int>(budget[0] / 1024.0 / 1024.0)) + "MB_" +
       to_string(static_cast<int>(budget[1] / 1024.0 / 1024.0)) + "MB";
   string schedulefile = _output_dir + "/" + _name + "_" + _mode + "_" +
                         budget_str + "_ilp_schedule.txt";
-  _computeMatrix2Schedule(R, schedulefile);
-  matrix S = ilp->get_S();
+  _ilpMatrices2Schedule(schedulefile);
   vector<double> results;
   results.push_back(ilp->get_minimal_compute_costs());
   results.push_back(ilp->get_minimal_memory());
@@ -957,19 +958,19 @@ float Network::_getTimeOfOp(const int opID, const string prefix,
   return time;
 }
 
-void Network::_computeMatrix2Schedule(matrix &R, const string &schedulefile) {
+void Network::_ilpMatrices2Schedule(const string &schedulefile) {
   // This only computes a very dumb schedule (only frontier advancing stage, no
   // recomputes)
   string best_schedule = "";
   for (size_t opID = 0; opID < _operators.size(); opID++) {
-    string device_name = R.at(0, opID, opID) == 1 ? "cpu_0" : "gpu_0";
+    string device_name = _R.at(0, opID, opID) == 1 ? "cpu_0" : "gpu_0";
     best_schedule += _operators.at(opID)->type + ";" + device_name + ";0;any\n";
   }
   if (_training) {
     for (size_t i = 0; i < _operators.size(); i++) {
       auto opID = _operators.size() - i - 1;
       auto schedID = _operators.size() + i;
-      string device_name = R.at(0, schedID, schedID) == 1 ? "cpu_0" : "gpu_0";
+      string device_name = _R.at(0, schedID, schedID) == 1 ? "cpu_0" : "gpu_0";
       best_schedule +=
           _operators.at(opID)->type + ";" + device_name + ";0;any\n";
     }
