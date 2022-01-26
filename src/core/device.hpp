@@ -125,6 +125,6 @@ public:
   unique_ptr<engine> eng;
   vector<unique_ptr<stream>> streams;
   float budget;
-  float memory_used;
+  long long int memory_used;
 };
 #endif

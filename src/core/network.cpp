@@ -633,8 +633,7 @@ void Network::_print_memory_usage(const string memory_file = "",
                                   const string event_info = "") {
   string memory_usage = "";
   for (auto dev : _devices) {
-    memory_usage +=
-        to_string(static_cast<size_t>(dev.second->memory_used)) + ",";
+    memory_usage += to_string(dev.second->memory_used) + ",";
   }
   memory_usage += event_info;
   if (!memory_file.empty()) {
