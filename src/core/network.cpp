@@ -699,10 +699,10 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
 
   for (auto i = 0; i < num_iterations; i++) {
     for (size_t j = 0; j < T; j++) {
-      size_t schedID = j;
+      size_t computeSchedID = j;
       // Release
-      if (schedID > _opsToKeep) {
-        size_t releaseSchedID = schedID - 2;
+      if (computeSchedID > _opsToKeep) {
+        size_t releaseSchedID = computeSchedID - 2;
         size_t releaseOpID = (releaseSchedID < _operators.size())
                                  ? releaseSchedID
                                  : 2 * _operators.size() - releaseSchedID - 1;
@@ -721,52 +721,54 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
         }
       }
       // Compute
-      auto is_fwd_pass = j < _operators.size();
+      auto is_fwd_pass = computeSchedID < _operators.size();
       string mode = is_fwd_pass ? "fwd" : "bwd";
-      size_t opID = is_fwd_pass ? j : 2 * _operators.size() - j - 1;
-      auto inputs = is_fwd_pass ? _operators.at(opID)->_f_op.input
-                                : _operators.at(opID)->_b_op.input;
-      auto outputs = is_fwd_pass ? _operators.at(opID)->_f_op.output
-                                 : _operators.at(opID)->_b_op.output;
+      size_t computeOpID = is_fwd_pass
+                               ? computeSchedID
+                               : 2 * _operators.size() - computeSchedID - 1;
+      string computeOpName = _operators.at(computeOpID)->name;
+      string computeOpType = _operators.at(computeOpID)->type;
       if (_verbose > 1) {
-        cout << "compute " << to_string(schedID) << " "
-             << _operators.at(opID)->name << " (" << _operators.at(opID)->type
-             << ")"
+        cout << "compute " << computeSchedID << " " << computeOpName << " ("
+             << computeOpType << ")"
              << " " << mode << endl;
       }
-      auto e = _getExecuteOperator(schedID);
+
+      auto e = _getExecuteOperator(computeSchedID);
+      auto devName = e.engineID;
+      auto outTag = e.outputTag;
+
+      auto inputs = is_fwd_pass ? _operators.at(computeOpID)->_f_op.input
+                                : _operators.at(computeOpID)->_b_op.input;
       _reinitTensors(inputs);
-      auto out_tag = e.outputTag.to_dnnl();
       float median_time = 0.0f;
       packaged_task<float(int, shared_ptr<Operator> &, shared_ptr<Device> &,
                           unordered_map<std::string, shared_ptr<Tensor>> &,
                           memory::format_tag, int)>
           task(runOP);
       auto future = task.get_future();
-      thread thr(move(task), is_fwd_pass, std::ref(_operators.at(opID)),
-                 std::ref(_devices[e.engineID]), std::ref(_tensors), out_tag,
-                 _verbose);
+      thread thr(move(task), is_fwd_pass, std::ref(_operators.at(computeOpID)),
+                 std::ref(_devices[devName]), std::ref(_tensors),
+                 outTag.to_dnnl(), _verbose);
       if (future.wait_for(500s) != future_status::timeout) {
         thr.join();
         if (future.valid()) {
           median_time = future.get();
-          string prefix = schedID < _operators.size() ? "fwd_" : "bwd_";
           // opTime:   time in ms of Xth (last) operator execution
-          float opTime = _getTimeOfOp(opID, prefix, "total");
+          float opTime = _getTimeOfOp(computeOpID, mode + "_", "total");
           if (_verbose > 1) {
-            cout << _operators.at(opID)->type << ": " << opTime << " vs. "
-                 << median_time << endl;
+            cout << computeOpType << ": " << opTime << " vs. " << median_time
+                 << endl;
           }
           opTimes.push_back(median_time);
         }
       } else {
         thr.detach();
-        throw std::runtime_error("Timeout in operator " +
-                                 _operators.at(opID)->name + "_" + mode + "!");
+        throw std::runtime_error("Timeout in operator " + computeOpName + "_" +
+                                 mode + "!");
       }
       // measure memory usage after computing operator i
-      _print_memory_usage(_memoryLogfile,
-                          _operators.at(opID)->type + "_" + mode);
+      _print_memory_usage(_memoryLogfile, computeOpType + "_" + mode);
     }
   }
 
