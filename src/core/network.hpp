@@ -44,6 +44,8 @@ private:
                          const size_t &batch);
   void _print_memory_usage(const string memory_file, const string event_info);
   /**************************************************************/
+  void _releaseOp(const size_t releaseSchedID);
+  float _computeOp(const size_t computeSchedID, const string devName);
   vector<float> _run(const string &data_path, const string &label_path,
                      const size_t num_iterations);
   vector<vector<float>> _benchmark(const string &data_path,
