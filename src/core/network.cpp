@@ -752,32 +752,35 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
       auto consumers = t->second->consumers();
       if (consumers.size() > 0) {
         auto consumerSchedID = getOpIndexFromName(_operators, consumers[0]);
-        auto e = _getExecuteOperator(consumerSchedID);
-        t->second->init(t->second->desc(), _devices[e.engineID]);
+        string devName = _getExecuteOperator(consumerSchedID).engineID;
+        t->second->init(t->second->desc(), _devices[devName]);
       }
     }
   }
   _print_memory_usage(_memoryLogfile, "loaded_params");
 
   auto opTimes = vector<float>();
-  size_t T = _R.get_size() > 0
-                 ? _R.get_rows()
-                 : (_training ? 2 * _operators.size() : _operators.size());
 
-  if (_R.get_size() > 0 && _verbose > 1) {
-    _R.print();
-  }
-
-  for (auto i = 0; i < num_iterations; i++) {
-    for (size_t t = 0; t < T; t++) {
-      // Release
-      if (t > _opsToKeep) {
-        size_t releaseSchedID = t - 2;
-        _releaseOp(releaseSchedID);
-      }
-      // Compute
-      if (_R.get_size() > 0) {
-        for (size_t n = 0; n < T; n++) {
+  if (_R.get_size() > 0) {
+    if (_verbose > 1) {
+      cout << "R" << endl;
+      _R.print();
+      cout << "S" << endl;
+      _S.print();
+      cout << "F" << endl;
+      _F.print();
+    }
+    size_t T = _R.get_rows();
+    for (auto i = 0; i < num_iterations; i++) {
+      for (size_t t = 0; t < T; t++) {
+        // Release
+        for (size_t n = 0; n < t; n++) {
+          if ((_S.at(0, t, n) + _S.at(1, t, n)) == 0) {
+            _releaseOp(n);
+          }
+        }
+        // Compute
+        for (size_t n = 0; n <= t; n++) {
           if (_R.at(0, t, n) == 1) {
             opTimes.push_back(_computeOp(n, "cpu_0"));
           }
@@ -785,7 +788,18 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
             opTimes.push_back(_computeOp(n, "gpu_0"));
           }
         }
-      } else {
+      }
+    }
+  } else {
+    size_t T = _training ? 2 * _operators.size() : _operators.size();
+    for (auto i = 0; i < num_iterations; i++) {
+      for (size_t t = 0; t < T; t++) {
+        // Release
+        if (t > _opsToKeep) {
+          size_t releaseSchedID = t - 2;
+          _releaseOp(releaseSchedID);
+        }
+        // Compute
         string devName = _getExecuteOperator(t).engineID;
         opTimes.push_back(_computeOp(t, devName));
       }
