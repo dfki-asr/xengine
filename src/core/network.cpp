@@ -40,7 +40,7 @@ Network::Network(const string name, const string model_file,
     cout << endl
          << "********** " << _name << " *** " << _mode << " ********" << endl;
     maxMemoryDemandInfo(_tensors, _verbose);
-    maxMemoryDemandInfo(_operators, _training, _verbose);
+    maxMemoryDemandInfo(_operators, _tensors, _training, _verbose);
   }
   auto begin = get_time();
   _fillModelParameters(model);
@@ -185,12 +185,18 @@ void Network::solveILP(const string mpsfile, const string logfile,
     compute_costs_per_op = _benchmark("", "");
     // memory costs
     for (size_t opID = 0; opID < _operators.size(); opID++) {
-      memory_per_op.push_back(_operators.at(opID)->getFwdMemoryConsumption());
+      long long memory_long =
+          _operators.at(opID)->getFwdMemoryConsumption(_tensors);
+      float memory_float = static_cast<float>(memory_long);
+      memory_per_op.push_back(memory_float);
     }
     if (_training) {
       for (size_t i = 0; i < _operators.size(); i++) {
         auto opID = _operators.size() - i - 1;
-        memory_per_op.push_back(_operators.at(opID)->getBwdMemoryConsumption());
+        long long memory_long =
+            _operators.at(opID)->getBwdMemoryConsumption(_tensors);
+        float memory_float = static_cast<float>(memory_long);
+        memory_per_op.push_back(memory_float);
       }
     }
     _resetPrimitives();

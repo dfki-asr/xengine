@@ -89,8 +89,35 @@ public:
       }
     }
   }
-  float getFwdMemoryConsumption() { return _f_op.memory_consumption; }
-  float getBwdMemoryConsumption() { return _b_op.memory_consumption; }
+
+  long long
+  getFwdMemoryConsumption(unordered_map<string, shared_ptr<Tensor>> &tensors) {
+    long long memory_usage = 0;
+    for (auto i : _f_op.input) {
+      if (tensors[i]->producer() == "external") {
+        memory_usage += tensors[i]->get_size();
+      }
+    }
+    for (auto i : _f_op.output) {
+      memory_usage += tensors[i]->get_size();
+    }
+    return memory_usage;
+  }
+
+  long long
+  getBwdMemoryConsumption(unordered_map<string, shared_ptr<Tensor>> &tensors) {
+    long long memory_usage = 0;
+    for (auto i : _b_op.input) {
+      if (tensors[i]->producer() == "external") {
+        memory_usage += tensors[i]->get_size();
+      }
+    }
+    for (auto i : _b_op.output) {
+      memory_usage += tensors[i]->get_size();
+    }
+    return memory_usage;
+  }
+
   virtual void forward(shared_ptr<Device> dev,
                        unordered_map<string, shared_ptr<Tensor>> &tensors,
                        memory::format_tag tag = memory::format_tag::any,

@@ -318,10 +318,11 @@ void fillTensors(unordered_map<string, shared_ptr<Tensor>> &tensors,
 }
 
 void maxMemoryDemandInfo(vector<shared_ptr<Operator>> &operators,
+                         unordered_map<string, shared_ptr<Tensor>> &tensors,
                          const int training, const int verbose = 0) {
   float op_md = 0.0f;
   for (auto op : operators) {
-    float bytes = op->getFwdMemoryConsumption();
+    float bytes = op->getFwdMemoryConsumption(tensors);
     if (verbose > 1) {
       cout << op->name << " fwd with " << to_string(bytes / (1024.0f * 1024.0f))
            << " MB." << endl;
@@ -331,7 +332,7 @@ void maxMemoryDemandInfo(vector<shared_ptr<Operator>> &operators,
   if (training) {
     for (size_t i = 0; i < operators.size(); i++) {
       auto opID = operators.size() - i - 1;
-      float bytes = operators.at(opID)->getBwdMemoryConsumption();
+      float bytes = operators.at(opID)->getBwdMemoryConsumption(tensors);
       if (verbose > 1) {
         cout << operators.at(opID)->name << " bwd with "
              << to_string(bytes / (1024.0f * 1024.0f)) << " MB." << endl;
