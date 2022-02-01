@@ -51,6 +51,7 @@ Network::Network(const string name, const string model_file,
   if (_verbose > 0) {
     cout << "init took " << (get_elapsed_ms(begin)) << " ms." << endl;
   }
+  _opsToKeep = 2 * _operators.size();
 }
 
 Network::~Network() {
