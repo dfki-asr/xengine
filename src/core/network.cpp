@@ -756,8 +756,24 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
     if (t->second->producer() == "external") {
       auto consumers = t->second->consumers();
       if (consumers.size() > 0) {
-        auto consumerSchedID = getOpIndexFromName(_operators, consumers[0]);
+        auto firstConsumerName = consumers[0];
+        auto consumerSchedID =
+            getOpIndexFromName(_operators, firstConsumerName);
+        if (_operators.at(consumerSchedID)->type == "BatchNormalization") {
+          auto t_name = t->second->name();
+          if (t_name.find("gamma") != string::npos ||
+              t_name.find("beta") != string::npos) {
+            if (_verbose > 1) {
+              cout << "skip " << t->second->name() << " (BN param)" << endl;
+            }
+            continue;
+          }
+        }
         string devName = _getExecuteOperator(consumerSchedID).engineID;
+        if (_verbose > 1) {
+          cout << "move model parameter " << t->second->name() << " to "
+               << devName << endl;
+        }
         t->second->init(t->second->desc(), _devices[devName]);
       }
     }
