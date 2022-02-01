@@ -726,8 +726,6 @@ float Network::_computeOp(const size_t computeSchedID, const string devName) {
     throw std::runtime_error("Timeout in operator " + computeOpName + "_" +
                              mode + "!");
   }
-  // measure memory usage after computing operator i
-  _print_memory_usage(_memoryLogfile, computeOpType + "_" + mode);
   return median_time;
 }
 
@@ -794,6 +792,8 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
             opTimes.push_back(_computeOp(n, "gpu_0"));
           }
         }
+        // measure memory usage after each timestep
+        _print_memory_usage(_memoryLogfile, "t" + to_string(t));
       }
     }
   } else {
@@ -808,6 +808,8 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
         // Compute
         string devName = _getExecuteOperator(t).engineID;
         opTimes.push_back(_computeOp(t, devName));
+        // measure memory usage after each timestep
+        _print_memory_usage(_memoryLogfile, "t" + to_string(t));
       }
     }
   }
