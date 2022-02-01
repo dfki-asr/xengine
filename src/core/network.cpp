@@ -591,9 +591,9 @@ void Network::_fillModelParameters(onnx::ModelProto &model) {
     }
     _tensors[name]->release();
     _tensors[name]->set_device(_devices["cpu_0"]);
+    _tensors[name]->set_producer("external");
     _tensors[name]->set_memory(move(make_memory(
         desc, _devices["cpu_0"]->get_engine(), static_cast<void *>(raw_data))));
-    _tensors[name]->set_producer("external");
   }
 }
 
