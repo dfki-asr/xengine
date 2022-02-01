@@ -139,5 +139,6 @@ def main():
     plot(Gen9_info, Gen9_net, Gen9_modi, Gen9_N, Gen9_threads, Gen9_CPU,
          Gen9_GPU, Gen9_MILP)
 
+
 if __name__ == "__main__":
     main()
