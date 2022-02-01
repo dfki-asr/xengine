@@ -66,7 +66,8 @@ public:
   }
   ~ConvTranspose() { reset_fwd_primitives(); }
   void reset_fwd_primitives() {
-    if (_f_device != nullptr && _fwd_context != nullptr) {
+    if (_f_device != nullptr && _fwd_context != nullptr &&
+        _track_only_tensor_memory == 0) {
       _f_device->memory_used -= _fwd_context->get_memory_used();
     }
     _fwd_context.reset();
@@ -115,7 +116,9 @@ public:
           maybe_do_reorder(tensors[w_name]->get_memory(),
                            *_fwd_context->weights_mem, s, measure_time);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
-      dev->memory_used += _fwd_context->get_memory_used();
+      if (_track_only_tensor_memory == 0) {
+        dev->memory_used += _fwd_context->get_memory_used();
+      }
     }
     // reorders
     timings[time_name][src_name] =

@@ -127,13 +127,15 @@ public:
     reset_bwd_primitives();
   }
   void reset_fwd_primitives() {
-    if (_f_device != nullptr && _fwd_context != nullptr) {
+    if (_f_device != nullptr && _fwd_context != nullptr &&
+        _track_only_tensor_memory == 0) {
       _f_device->memory_used -= _fwd_context->get_memory_used();
     }
     _fwd_context.reset();
   }
   void reset_bwd_primitives() {
-    if (_b_device != nullptr && _bwd_context != nullptr) {
+    if (_b_device != nullptr && _bwd_context != nullptr &&
+        _track_only_tensor_memory == 0) {
       _b_device->memory_used -= _bwd_context->get_memory_used();
     }
     _bwd_context.reset();
@@ -185,7 +187,9 @@ public:
                              *_fwd_context->bias_mem, s, measure_time);
       }
       timings[time_name]["create"] = get_elapsed_ms(time_create);
-      dev->memory_used += _fwd_context->get_memory_used();
+      if (_track_only_tensor_memory == 0) {
+        dev->memory_used += _fwd_context->get_memory_used();
+      }
     }
     // reorders
     timings[time_name][src_name] =
@@ -285,7 +289,9 @@ public:
         tensors[b_diff_name]->init(b_md, dev);
       }
       timings[time_name]["create"] = get_elapsed_ms(time_create);
-      dev->memory_used += _bwd_context->get_memory_used();
+      if (_track_only_tensor_memory == 0) {
+        dev->memory_used += _bwd_context->get_memory_used();
+      }
     }
     /*********************** Backward Weights *****************************/
     // reorders

@@ -34,7 +34,7 @@ public:
   Operator(string n, string t, vector<string> i, vector<string> o,
            unordered_map<string, shared_ptr<Tensor>> &tensors, int train)
       : name(n), type(t), input(i), output(o), training(train),
-        _f_device(nullptr), _b_device(nullptr) {}
+        _f_device(nullptr), _b_device(nullptr), _track_only_tensor_memory(1) {}
   string name;
   string type;
   int training;
@@ -46,6 +46,7 @@ public:
   ExecutionOp _b_op;
   shared_ptr<Device> _f_device;
   shared_ptr<Device> _b_device;
+  unsigned int _track_only_tensor_memory;
   string getForwardTimeName(const engine &eng) {
     return "fwd_" + getDeviceName(eng);
   }
