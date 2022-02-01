@@ -11,12 +11,13 @@ class Tensor {
 public:
   Tensor(const string n, const memory::dims dims)
       : _name(n), _mem(nullptr), _dims(dims), _desc(memory::desc()),
-        _eng(dnnl::engine()), _device(nullptr), _producer(""),
+        _eng(dnnl::engine()), _device(nullptr), _producer(""), _size(0),
         _consumers(vector<string>()) {}
 
   Tensor(const string n, const memory::desc d, engine &e)
       : _name(n), _mem(nullptr), _dims(d.dims()), _desc(d), _eng(e),
-        _device(nullptr), _producer(""), _consumers(vector<string>()) {
+        _device(nullptr), _producer(""), _size(0),
+        _consumers(vector<string>()) {
     init(d, e);
   }
 
@@ -35,6 +36,7 @@ public:
     _mem = make_unique<memory>(move(make_memory(d, e)));
     _dims = d.dims();
     _desc = d;
+    _size = _mem->get_desc().get_size();
     _eng = _mem->get_engine();
     if (_device != nullptr) {
       _device->memory_used += _mem->get_desc().get_size();
@@ -97,6 +99,7 @@ public:
     _mem = make_unique<memory>(move(make_memory(mem.get_desc(), eng)));
     _dims = _mem->get_desc().dims();
     _desc = _mem->get_desc();
+    _size = _mem->get_desc().get_size();
     _eng = _mem->get_engine();
 #ifdef DNNL_WITH_SYCL
     bool is_cpu_sycl = (DNNL_CPU_RUNTIME == DNNL_RUNTIME_SYCL &&
@@ -183,6 +186,13 @@ public:
     return _mem->get_desc();
   }
 
+  long long get_size() {
+    if (_mem != nullptr) {
+      return _mem->get_desc().get_size();
+    }
+    return _size;
+  }
+
   engine get_engine() {
     if (!is_initialized()) {
       if (_eng == dnnl::engine()) {
@@ -209,6 +219,7 @@ private:
   unique_ptr<memory> _mem;
   memory::dims _dims;
   memory::desc _desc;
+  long long _size;
   dnnl::engine _eng;
   shared_ptr<Device> _device;
   string _producer;
