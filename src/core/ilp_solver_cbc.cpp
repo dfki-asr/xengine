@@ -22,10 +22,6 @@ ILP_Solver_CBC::ILP_Solver_CBC(string model_name, string mpsfile,
 ILP_Solver_CBC::~ILP_Solver_CBC() {}
 
 int ILP_Solver_CBC::solve() {
-  ifstream f(_mpsfile);
-  if (!f.is_open()) {
-    defineProblemAsMPS();
-  }
   try {
     OsiClpSolverInterface solver1;
     CbcModel model(solver1);

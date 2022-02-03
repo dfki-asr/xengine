@@ -19,10 +19,6 @@ ILP_Solver_GRB::ILP_Solver_GRB(string model_name, string mpsfile,
 ILP_Solver_GRB::~ILP_Solver_GRB() {}
 
 int ILP_Solver_GRB::solve() {
-  ifstream f(_mpsfile);
-  if (!f.is_open()) {
-    defineProblemAsMPS();
-  }
   try {
     GRBEnv env = GRBEnv(true);
     env.set("LogFile", _logfile);
