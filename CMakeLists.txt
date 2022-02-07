@@ -42,7 +42,7 @@ if (HAS_GUROBI)
 endif()
 
 if (NOT HAS_CBC AND NOT HAS_GUROBI)
-  message(SEND_ERROR "Either HAS_CBC or HAS_GUROBI must be turned ON.")
+  message("WARNING: No ILP-Solver was given. Writing MPS-files only.")
 endif()
 
 option(protobuf_BUILD_TESTS "" OFF)

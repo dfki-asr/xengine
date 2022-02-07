@@ -1,3 +1,11 @@
+#include <cassert>
+#include <iostream>
+#include <map>
+#include <math.h>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 #undef NDEBUG
 #ifdef HAS_CBC
 #include "../../src/core/ilp_solver_cbc.cpp"
@@ -5,9 +13,9 @@
 #ifdef HAS_GUROBI
 #include "../../src/core/ilp_solver_grb.cpp"
 #endif
-#include <cassert>
-#include <math.h>
-#include <memory>
+#if !defined(HAS_CBC) && !defined(HAS_GUROBI)
+#include "../../src/core/ilp_solver.hpp"
+#endif
 
 using namespace std;
 
@@ -19,35 +27,37 @@ vector<double> solve_ilp(string model_name, vector<pair<string, edge>> &edges,
                          const string mode) {
   vector<double> results;
   const int verbose = 0;
-  unique_ptr<ILP_Solver> ilp;
   if (mode == "GUROBI") {
 #ifdef HAS_GUROBI
-    ilp = make_unique<ILP_Solver_GRB>(model_name, "", "", edges, devices,
-                                      compute_costs, memory_costs, copy_costs,
-                                      budget, ram, verbose);
+    auto ilp = ILP_Solver_GRB(model_name, "", "", edges, devices, compute_costs,
+                              memory_costs, copy_costs, budget, ram, verbose);
+    ilp.solve();
+    if (verbose > 0) {
+      ilp.printResults();
+    }
+    results.push_back(ilp.get_minimal_compute_costs());
+    results.push_back(ilp.get_minimal_memory());
+    results.push_back(ilp.get_maximal_memory());
 #else
     throw runtime_error("not compiled with GUROBI");
 #endif
   } else if (mode == "CBC") {
 #ifdef HAS_CBC
-    ilp = make_unique<ILP_Solver_CBC>(model_name, "", "", edges, devices,
-                                      compute_costs, memory_costs, copy_costs,
-                                      budget, ram, verbose);
+    auto ilp = ILP_Solver_CBC(model_name, "", "", edges, devices, compute_costs,
+                              memory_costs, copy_costs, budget, ram, verbose);
+    ilp.solve();
+    if (verbose > 0) {
+      ilp.printResults();
+    }
+    results.push_back(ilp.get_minimal_compute_costs());
+    results.push_back(ilp.get_minimal_memory());
+    results.push_back(ilp.get_maximal_memory());
 #else
     throw runtime_error("not compiled with CBC");
 #endif
   } else {
     throw runtime_error("unsupported Solver mode!");
   }
-  ilp->solve();
-  if (verbose > 0) {
-    ilp->printResults();
-  }
-  matrix R = ilp->get_R();
-  matrix S = ilp->get_S();
-  results.push_back(ilp->get_minimal_compute_costs());
-  results.push_back(ilp->get_minimal_memory());
-  results.push_back(ilp->get_maximal_memory());
   return results;
 }
 

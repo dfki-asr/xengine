@@ -77,6 +77,11 @@ ILP_Solver::ILP_Solver(string model_name, string mpsfile, string logfile,
   _constraints = unordered_map<string, Constraint>();
   _constraints_insertOrder = vector<string>();
   _quad_obj = vector<QuadObj>();
+
+  ifstream f(_mpsfile);
+  if (!f.is_open()) {
+    defineProblemAsMPS();
+  }
 }
 
 ILP_Solver::~ILP_Solver() {

@@ -5,6 +5,10 @@
 #ifdef HAS_GUROBI
 #include "ilp_solver_grb.cpp"
 #endif
+#if !defined(HAS_CBC) && !defined(HAS_GUROBI)
+#include "ilp_solver.cpp"
+#endif
+#include <future>
 
 using namespace std;
 using namespace dnnl;
@@ -290,31 +294,26 @@ void Network::solveILP(const string mpsfile, const string logfile,
                        vector<vector<float>> &compute_costs_per_op,
                        vector<float> &memory_per_op, matrix &copy_costs,
                        vector<float> &budget, vector<float> &ram) {
-  unique_ptr<ILP_Solver> ilp = nullptr;
-  // choose Gurobi if available, otherwise CBC
 #ifdef HAS_GUROBI
-  ilp = make_unique<ILP_Solver_GRB>(
-      _model_name + "_" + _mode, mpsfile, logfile, edges, dev_names,
-      compute_costs_per_op, memory_per_op, copy_costs, budget, ram, _verbose);
+  auto ilp = ILP_Solver_GRB(_model_name + "_" + _mode, mpsfile, logfile, edges,
+                            dev_names, compute_costs_per_op, memory_per_op,
+                            copy_costs, budget, ram, _verbose);
+  ilp.solve();
+  ilp.printResults();
 #else
 #ifdef HAS_CBC
-  ilp = make_unique<ILP_Solver_CBC>(
-      _model_name + "_" + _mode, mpsfile, logfile, edges, dev_names,
-      compute_costs_per_op, memory_per_op, copy_costs, budget, ram, _verbose);
+  auto ilp = ILP_Solver_CBC(_model_name + "_" + _mode, mpsfile, logfile, edges,
+                            dev_names, compute_costs_per_op, memory_per_op,
+                            copy_costs, budget, ram, _verbose);
+  ilp.solve();
+  ilp.printResults();
+#else
+  cout << "No ILP-solver given. Define problem as MPS only." << endl;
+  auto ilp = ILP_Solver(_model_name + "_" + _mode, mpsfile, logfile, edges,
+                        dev_names, compute_costs_per_op, memory_per_op,
+                        copy_costs, budget, ram, _verbose);
 #endif
 #endif
-  if (ilp == nullptr) {
-    throw runtime_error("ILP Solver error!");
-  }
-  cout << "solve ILP ..." << endl;
-  ilp->solve();
-  ilp->printResults();
-  matrix R = ilp->get_R();
-  matrix S = ilp->get_S();
-  vector<double> results;
-  results.push_back(ilp->get_minimal_compute_costs());
-  results.push_back(ilp->get_minimal_memory());
-  results.push_back(ilp->get_maximal_memory());
 }
 
 void Network::solveILP(const string mpsfile, const string logfile,

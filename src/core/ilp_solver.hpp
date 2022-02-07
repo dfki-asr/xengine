@@ -93,7 +93,6 @@ public:
              const int verbose = 0);
   ~ILP_Solver();
   int defineProblemAsMPS();
-  virtual int solve() = 0;
   void printResults();
   matrix get_R();
   matrix get_S();
