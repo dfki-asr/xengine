@@ -1037,7 +1037,7 @@ float Network::_getTensorCopyCosts(string tensor_name, string src_dev_name,
   auto dst_desc = _tensors[tensor_name]->desc();
 
   auto s = stream(dst_eng);
-  if (dst_eng.get_kind() == engine::kind::cpu) {
+  if (src_eng.get_kind() != engine::kind::cpu) {
     s = stream(src_eng);
   }
   auto begin = get_time();
