@@ -1052,7 +1052,8 @@ void Network::_fillCopyCostsMatrix(matrix &copy_costs,
                                    vector<pair<string, edge>> &edges) {
   for (auto e : edges) {
     const string tensor_name = e.first;
-    auto edgeID = getEdgeIndexFromName(edges, tensor_name);
+    auto edgeID =
+        getEdgeIndexFromSrcDst(edges, e.second.get_u(), e.second.get_v());
 
     for (auto d = _devices.begin(); d != _devices.end(); d++) {
       auto src_dev_name = d->first;
