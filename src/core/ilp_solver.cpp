@@ -44,6 +44,20 @@ vector<size_t> getUncoveredEdges(vector<pair<string, edge>> &edges,
   return edges_uncovered;
 }
 
+int getEdgeIndexFromSrcDst(vector<pair<string, edge>> &edges, const size_t src,
+                           const size_t dst) {
+  for (size_t edgeID = 0; edgeID < edges.size(); edgeID++) {
+    if (edges[edgeID].second.get_u() == src &&
+        edges[edgeID].second.get_v() == dst) {
+      return edgeID;
+    }
+  }
+  cout << "Edge " + to_string(src) + "->" + to_string(dst) + " was not found!"
+       << endl;
+  throw runtime_error("Edge " + to_string(src) + "->" + to_string(dst) +
+                      " was not found!");
+}
+
 int getEdgeIndexFromName(vector<pair<string, edge>> &edges,
                          const string edgeName) {
   for (size_t edgeID = 0; edgeID < edges.size(); edgeID++) {
@@ -312,8 +326,8 @@ int ILP_Solver::defineProblemAsMPS() {
               "S" + idx_to_string(d, t, e.second.get_u()));
           const string name_Z_u = get_fixed_length_var_name(
               "Z" + idx_to_string(d, t, e.second.get_u()));
-          const string edgeName = e.first;
-          const size_t edgeIdx = getEdgeIndexFromName(_edges, edgeName);
+          const size_t edgeIdx = getEdgeIndexFromSrcDst(
+              _edges, e.second.get_u(), e.second.get_v());
           // get copy costs from d -> to d_
           const float cc = _copy_costs.at(edgeIdx, d, d_);
           if (cc > 0.0f) {

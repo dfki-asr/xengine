@@ -75,13 +75,10 @@ private:
                      const string time_type);
   void _ilpMatrices2Schedule(const string &schedulefile);
   /**************************************************************/
-  void _fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
-                      vector<pair<string, edge>> &edges);
-  void _collectConsumerCopyCosts(const int opID, const int d,
-                                 vector<string> outputs,
-                                 vector<string> &device_per_op,
-                                 vector<pair<string, edge>> &edges,
-                                 matrix &copy_costs);
+  float _getTensorCopyCosts(string tensor_name, string src_dev_name,
+                            string dst_dev_name);
+  void _fillCopyCostsMatrix(matrix &copy_costs,
+                            vector<pair<string, edge>> &edges);
   /**************************************************************/
   string _name, _mode, _output_dir, _memoryLogfile;
   map<string, shared_ptr<Device>> _devices;

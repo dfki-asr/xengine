@@ -180,7 +180,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
       }
       const size_t src_idx = getOpIndexFromName(_operators, src);
       const size_t dst_idx = getOpIndexFromName(_operators, dst);
-      const string edgeName = to_string(src_idx) + "->" + to_string(dst_idx);
+      const string edgeName = it->second->name();
       edges.push_back(pair<string, edge>(edgeName, edge(src_idx, dst_idx)));
     }
   }
@@ -211,35 +211,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
     _resetPrimitives();
     if (_devices.size() > 1) {
       cout << "measure copy costs ..." << endl;
-      auto device_per_op = vector<string>();
-      do {
-        _resetPrimitives();
-        device_per_op = selectDevicePerOp(_operators, dev_names, _training);
-        _fillCopyCosts(copy_costs, device_per_op, edges);
-      } while (next_permutation(dev_names.begin(), dev_names.end()));
-      if (_training) {
-        do {
-          _resetPrimitives();
-          device_per_op =
-              selectDevicePerOp(_operators, dev_names, _training, 1);
-          _fillCopyCosts(copy_costs, device_per_op, edges);
-        } while (next_permutation(dev_names.begin(), dev_names.end()));
-      }
-      _resetPrimitives();
-      vector<size_t> edges_uncovered = getUncoveredEdges(edges, copy_costs);
-      for (size_t d = 0; d < _devices.size(); d++) {
-        vector<string> cover_last_edges_device_per_op = device_per_op;
-        for (size_t i : edges_uncovered) {
-          size_t src = edges[i].second.get_u();
-          size_t dst = edges[i].second.get_v();
-          auto op2switch = (d == 0) ? dst : src;
-          cover_last_edges_device_per_op[op2switch] =
-              (device_per_op[op2switch] == dev_names[0]) ? dev_names[1]
-                                                         : dev_names[0];
-        }
-        _resetPrimitives();
-        _fillCopyCosts(copy_costs, cover_last_edges_device_per_op, edges);
-      }
+      _fillCopyCostsMatrix(copy_costs, edges);
       vector<size_t> edges_still_uncovered =
           getUncoveredEdges(edges, copy_costs);
       if (edges_still_uncovered.size() != 0) {
@@ -1049,67 +1021,51 @@ void Network::_ilpMatrices2Schedule(const string &schedulefile) {
 }
 
 /**************************************************************/
-
-void Network::_fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
-                             vector<pair<string, edge>> &edges) {
-  // Execute full graph on different devices
-  vector<vector<string>> sched = _createScheduleStringVec(device_per_op);
-  _setSchedule(sched);
-  // Execute
-  _run("", "", 1);
-  // Collect costs
-  for (size_t opID = 0; opID < _operators.size(); opID++) {
-    auto d = getDevIndexFromName(_devices, device_per_op[opID]);
-    _collectConsumerCopyCosts(opID, d, _operators.at(opID)->_f_op.output,
-                              device_per_op, edges, copy_costs);
+float Network::_getTensorCopyCosts(string tensor_name, string src_dev_name,
+                                   string dst_dev_name) {
+  auto d_src = getDevIndexFromName(_devices, src_dev_name);
+  auto d_dst = getDevIndexFromName(_devices, dst_dev_name);
+  if (d_src == d_dst) {
+    // same device, no copy costs
+    return 0.0;
   }
-  if (_training) {
-    for (size_t i = 0; i < _operators.size(); i++) {
-      auto opID = _operators.size() - i - 1;
-      auto schedID = _operators.size() + i;
-      auto d = getDevIndexFromName(_devices, device_per_op[schedID]);
-      _collectConsumerCopyCosts(schedID, d, _operators.at(opID)->_b_op.output,
-                                device_per_op, edges, copy_costs);
+  auto src_eng = _devices[src_dev_name]->get_engine();
+  auto dst_eng = _devices[dst_dev_name]->get_engine();
+
+  // TODO: handle different src and target desc!
+  auto src_desc = _tensors[tensor_name]->desc();
+  auto dst_desc = _tensors[tensor_name]->desc();
+
+  auto s = stream(dst_eng);
+  if (dst_eng.get_kind() == engine::kind::cpu) {
+    s = stream(src_eng);
+  }
+  auto begin = get_time();
+  auto src = make_memory(src_desc, src_eng);
+  auto dst = make_memory(dst_desc, dst_eng);
+  reorder(src, dst).execute(s, {{DNNL_ARG_FROM, src}, {DNNL_ARG_TO, dst}});
+  s.wait();
+  return get_elapsed_ms(begin);
+}
+
+void Network::_fillCopyCostsMatrix(matrix &copy_costs,
+                                   vector<pair<string, edge>> &edges) {
+  for (auto e : edges) {
+    const string tensor_name = e.first;
+    auto edgeID = getEdgeIndexFromName(edges, tensor_name);
+
+    for (auto d = _devices.begin(); d != _devices.end(); d++) {
+      auto src_dev_name = d->first;
+      auto d_src = getDevIndexFromName(_devices, src_dev_name);
+
+      for (auto d_ = _devices.begin(); d_ != _devices.end(); d_++) {
+        auto dst_dev_name = d_->first;
+        auto d_dst = getDevIndexFromName(_devices, dst_dev_name);
+
+        float c = _getTensorCopyCosts(tensor_name, src_dev_name, dst_dev_name);
+        copy_costs.set(edgeID, d_dst, d_src, c);
+      }
     }
   }
 }
-
-void Network::_collectConsumerCopyCosts(const int opID, const int d,
-                                        vector<string> outputs,
-                                        vector<string> &device_per_op,
-                                        vector<pair<string, edge>> &edges,
-                                        matrix &copy_costs) {
-  for (auto output : outputs) {
-    for (auto consumer : _tensors[output]->consumers()) {
-      if (consumer == "external") {
-        continue;
-      }
-      auto consumerSchedID = getOpIndexFromName(_operators, consumer);
-      auto cons_dev_name = device_per_op[consumerSchedID];
-      auto d_ = getDevIndexFromName(_devices, cons_dev_name);
-      if (d == d_) {
-        continue;
-      }
-      auto consumerOpID = consumerSchedID;
-      string prefix = "fwd_";
-      if (consumerSchedID >= _operators.size()) {
-        consumerOpID = 2 * _operators.size() - consumerSchedID - 1;
-        prefix = "bwd_";
-      }
-      auto timings = _operators.at(consumerOpID)->timings;
-      auto producer = _tensors[output]->producer();
-      const size_t src_idx = getOpIndexFromName(_operators, producer);
-      const size_t dst_idx = consumerSchedID;
-      const string edgeName = to_string(src_idx) + "->" + to_string(dst_idx);
-      float edgeCosts = timings[prefix + cons_dev_name][output];
-      auto edgeID = getEdgeIndexFromName(edges, edgeName);
-      // set copy costs from d -> to d_
-      float c = copy_costs.at(edgeID, d, d_);
-      if (c > 0)
-        continue;
-      copy_costs.set(edgeID, d, d_, edgeCosts);
-    }
-  }
-}
-
 /**************************************************************/
