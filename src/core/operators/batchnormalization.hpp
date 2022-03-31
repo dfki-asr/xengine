@@ -190,7 +190,7 @@ public:
     auto channels = src_md.dims().at(1);
     auto gamma_beta_dims = memory::dims(2, channels);
     auto gamma_beta_md = getDesc(gamma_beta_dims, memory::format_tag::nc);
-    auto time_name = getForwardTimeName(eng);
+    auto time_name = getForwardTimeName(dev->name);
     auto s = dev->get_stream(0);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
@@ -264,7 +264,7 @@ public:
     auto gamma_beta_dims = memory::dims(2, channels);
     auto gamma_beta_md = getDesc(gamma_beta_dims, memory::format_tag::nc);
     auto gamma_beta_diff_md = getDesc(gamma_beta_dims, memory::format_tag::nc);
-    auto time_name = getBackwardTimeName(eng);
+    auto time_name = getBackwardTimeName(dev->name);
     auto s = dev->get_stream(0);
     if (_bwd_context == nullptr) {
       auto time_create = get_time();

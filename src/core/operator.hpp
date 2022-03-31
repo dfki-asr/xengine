@@ -47,14 +47,9 @@ public:
   shared_ptr<Device> _f_device;
   shared_ptr<Device> _b_device;
   unsigned int _track_only_tensor_memory;
-  string getForwardTimeName(const engine &eng) {
-    return "fwd_" + getDeviceName(eng);
-  }
-  string getBackwardTimeName(const engine &eng) {
-    return "bwd_" + getDeviceName(eng);
-  }
-  string getDeviceName(const engine &eng) {
-    return (eng.get_kind() == dnnl::engine::kind::cpu) ? "cpu_0" : "gpu_0";
+  string getForwardTimeName(const string dev_name) { return "fwd_" + dev_name; }
+  string getBackwardTimeName(const string dev_name) {
+    return "bwd_" + dev_name;
   }
   prop_kind getMode(const int training) {
     return training ? prop_kind::forward_training

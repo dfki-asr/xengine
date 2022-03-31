@@ -131,7 +131,7 @@ public:
     auto src_name = _f_op.input.at(0);
     auto out_name = _f_op.output.at(0);
     auto src_md = tensors[src_name]->desc();
-    auto time_name = getForwardTimeName(eng);
+    auto time_name = getForwardTimeName(dev->name);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       // Create operation descriptor.
@@ -200,7 +200,7 @@ public:
     auto out_diff_name = _b_op.output.at(0);
     auto src_md = tensors[src_name]->desc();
     auto dst_md = tensors[out_name]->desc();
-    auto time_name = getBackwardTimeName(eng);
+    auto time_name = getBackwardTimeName(dev->name);
     if (_bwd_context == nullptr) {
       auto time_create = get_time();
       _bwd_context.reset(new LRNBwdContext());

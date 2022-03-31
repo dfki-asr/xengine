@@ -85,7 +85,7 @@ public:
     auto src_md = getDesc(tensors[src_name]->dims());
     auto dst_md = getDesc(tensors[out_name]->dims());
     auto w_md = getDesc(tensors[w_name]->dims());
-    auto time_name = getForwardTimeName(eng);
+    auto time_name = getForwardTimeName(dev->name);
     auto s = dev->get_stream(0);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();

@@ -156,7 +156,7 @@ public:
                            : memory::desc();
     auto dst_dims = get_output_dims(src_dims, w_dims.at(0), kernel, stride,
                                     padding_l, padding_r);
-    auto time_name = getForwardTimeName(eng);
+    auto time_name = getForwardTimeName(dev->name);
     auto s = dev->get_stream(0);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
@@ -232,7 +232,7 @@ public:
     auto dst_dims = get_output_dims(src_dims, w_dims.at(0), kernel, stride,
                                     padding_l, padding_r);
     auto dst_md = getDesc(dst_dims, outputTag);
-    auto time_name = getBackwardTimeName(eng);
+    auto time_name = getBackwardTimeName(dev->name);
     auto s = dev->get_stream(0);
     if (_bwd_context == nullptr) {
       auto time_create = get_time();

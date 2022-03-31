@@ -111,7 +111,7 @@ public:
     auto time_exe = get_time();
     auto src_name = _f_op.input.at(0);
     auto out_name = _f_op.output.at(0);
-    auto time_name = getForwardTimeName(eng);
+    auto time_name = getForwardTimeName(dev->name);
     if (training) {
       auto src_md = tensors[src_name]->desc();
       // get memory
@@ -153,7 +153,7 @@ public:
     auto out_diff_name = _b_op.output.at(0);
     auto src_md = tensors[_f_op.input.at(0)]->desc();
     assert(tensors.find(in_diff_name) != tensors.end());
-    auto time_name = getBackwardTimeName(eng);
+    auto time_name = getBackwardTimeName(dev->name);
     // get memory
     auto in_diff_mem = make_memory(src_md, eng);
     tensors[out_diff_name]->init(src_md, dev);

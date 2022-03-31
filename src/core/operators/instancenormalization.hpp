@@ -178,7 +178,7 @@ public:
     auto src_dims = src_md.dims();
     auto batchsize = src_dims.at(0);
     auto channels = src_dims.at(1);
-    auto time_name = getForwardTimeName(eng);
+    auto time_name = getForwardTimeName(dev->name);
     auto s = dev->get_stream(0);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();

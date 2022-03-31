@@ -61,7 +61,7 @@ public:
     auto begin = get_time();
     auto eng = dev->get_engine();
     auto out_name = _f_op.output.at(0);
-    auto time_name = getForwardTimeName(eng);
+    auto time_name = getForwardTimeName(dev->name);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       _fwd_context.reset(new AddFwdContext());
@@ -130,7 +130,7 @@ public:
     auto src_b_md = tensors[_f_op.input.at(1)]->desc();
     assert(src_a_md == src_b_md);
     assert(tensors.find(in_diff_name) != tensors.end());
-    auto time_name = getBackwardTimeName(eng);
+    auto time_name = getBackwardTimeName(dev->name);
     // get memory
     auto in_diff_mem = make_memory(src_a_md, eng);
     // reorders

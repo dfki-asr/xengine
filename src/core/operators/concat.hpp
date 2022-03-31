@@ -149,7 +149,7 @@ public:
     auto begin = get_time();
     auto eng = dev->get_engine();
     auto out_name = _f_op.output.at(0);
-    auto time_name = getForwardTimeName(eng);
+    auto time_name = getForwardTimeName(dev->name);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       _fwd_context.reset(new ConcatFwdContext());
@@ -209,7 +209,7 @@ public:
     _b_device = dev;
     auto begin = get_time();
     auto eng = dev->get_engine();
-    auto time_name = getBackwardTimeName(eng);
+    auto time_name = getBackwardTimeName(dev->name);
     auto in_diff_name = _b_op.input.at(0);
     // get memory
     auto in_diff_mem = make_memory(tensors[in_diff_name]->desc(), eng);
