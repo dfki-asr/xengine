@@ -295,6 +295,15 @@ insert_input_tensors(unordered_map<string, shared_ptr<Tensor>> &tensors,
   const auto last_node_dims =
       _get_dim_from_shape(last_node.type().tensor_type().shape());
   memory::dims label_dims = memory::dims({last_node_dims.at(0), 1});
+  if (graph.name() == "unet2D") {
+    label_dims = memory::dims(
+        {last_node_dims.at(0), 1, last_node_dims.at(2), last_node_dims.at(3)});
+  }
+  if (graph.name() == "unet3D") {
+    label_dims = memory::dims({last_node_dims.at(0), 1, last_node_dims.at(2),
+                               last_node_dims.at(3), last_node_dims.at(4)});
+  }
+
   tensors.emplace("labels", move(make_shared<Tensor>("labels", label_dims)));
   // Parameters
   auto initializers = graph.initializer();

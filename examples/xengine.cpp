@@ -82,9 +82,9 @@ void googlenet(const int &batchsize, const int &training,
                   output_dir);
 }
 
-void unet(const int &batchsize, const int &training, const string &device_file,
-          const string &output_dir) {
-  const string model_name = "unet";
+void unet(const string &version, const int &batchsize, const int &training,
+          const string &device_file, const string &output_dir) {
+  const string model_name = "unet" + version + "_bs" + to_string(batchsize);
   string images = "";
   string labels = "";
   execute_network(model_name, images, labels, device_file, training,
@@ -107,8 +107,10 @@ int run(const string &name, const int &batchsize, const int &training,
     resnet("34", batchsize, training, device_file, output_dir);
   } else if (name.compare("googlenet") == 0) {
     googlenet(batchsize, training, device_file, output_dir);
-  } else if (name.compare("unet") == 0) {
-    unet(batchsize, training, device_file, output_dir);
+  } else if (name.compare("unet2D") == 0) {
+    unet("2D", batchsize, training, device_file, output_dir);
+  } else if (name.compare("unet3D") == 0) {
+    unet("3D", batchsize, training, device_file, output_dir);
   } else {
     throw runtime_error("Unknown NETWORK option!");
   }

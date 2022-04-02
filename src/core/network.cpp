@@ -515,7 +515,8 @@ void Network::_init(onnx::ModelProto &model,
   }
   if (_operators.at(_operators.size() - 1)->type.find("Softmax") ==
       string::npos) {
-    const string name = "softmax0";
+    const string name =
+        _name.find("unet") != string::npos ? "dice0" : "softmax0";
     auto out_name = "prediction";
     auto loss_name = "loss";
     auto labels_name = "labels";
@@ -538,9 +539,15 @@ void Network::_init(onnx::ModelProto &model,
           make_shared<Tensor>(out_diff_name, _tensors[input_tensor]->dims()));
       _tensors[out_diff_name]->set_producer(name);
     }
-    _operators.push_back(move(make_shared<SoftmaxWithLoss>(
-        name, vector<string>({input_tensor, labels_name}),
-        vector<string>({out_name, loss_name}), axis, _tensors, _training)));
+    if (_name.find("unet") != string::npos) {
+      _operators.push_back(move(make_shared<DiceLoss>(
+          name, vector<string>({input_tensor, labels_name}),
+          vector<string>({out_name, loss_name}), axis, _tensors, _training)));
+    } else {
+      _operators.push_back(move(make_shared<SoftmaxWithLoss>(
+          name, vector<string>({input_tensor, labels_name}),
+          vector<string>({out_name, loss_name}), axis, _tensors, _training)));
+    }
   }
 }
 
