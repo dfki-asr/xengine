@@ -132,9 +132,9 @@ public:
       b_i.push_back(inp);
     }
     _f_op = ExecutionOp("fwd_" + n, "fwd", i, o);
-    _b_op = ExecutionOp(
-        "bwd_" + n, "bwd", b_i,
-        vector<string>{"diff_" + i.at(0), "diff_" + i.at(1) + "_" + i.at(2)});
+    _b_op = ExecutionOp("bwd_" + n, "bwd", b_i,
+                        vector<string>{"diff_" + i.at(0), "diff_" + i.at(1),
+                                       "diff_" + i.at(2)});
     _fwd_context = nullptr;
     _bwd_context = nullptr;
     init(tensors);
