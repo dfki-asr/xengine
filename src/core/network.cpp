@@ -262,21 +262,13 @@ void Network::solveILP(const string mpsfile, const string logfile,
   }
 
   map<string, vector<float>> budgets = {
-      {"auto", budget}, // auto (default) budget
-      {"3GB_3GB", {3221225472, 3221225472}},
-      {"1GB_1GB", {1073741824, 1073741824}},
-      {"500MB_500MB", {536870912, 536870912}},
-      {"800MB_800MB", {838860800, 838860800}},
-      {"850MB_500MB", {891289600, 536870912}},
-      {"850MB_850MB", {891289600, 891289600}},
-      {"250MB_250MB", {268435456, 268435456}},
-      {"150MB_150MB", {157286400, 157286400}},
-      {"100MB_100MB", {104857600, 104857600}},
-      {"70MB_40MB", {73400320, 41943040}},
-      {"10MB_10MB", {10485760, 10485760}}};
-  vector<string> run_order = {"auto",        "3GB_3GB",     "1GB_1GB",
-                              "500MB_500MB", "250MB_250MB", "150MB_150MB",
-                              "100MB_100MB"};
+      {"auto", budget},
+      {"75_percent", percent_of_budget(budget, 0.75)},
+      {"50_percent", percent_of_budget(budget, 0.5)},
+      {"25_percent", percent_of_budget(budget, 0.25)},
+      {"10_percent", percent_of_budget(budget, 0.1)}};
+  vector<string> run_order = {"auto", "75_percent", "50_percent", "25_percent",
+                              "10_percent"};
 
   for (auto budget_name : run_order) {
     const string _name =

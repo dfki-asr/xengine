@@ -475,3 +475,11 @@ void createDevices(map<string, shared_ptr<Device>> &devices,
     devices[device_name] = move(make_shared<Device>(d));
   }
 }
+
+vector<float> percent_of_budget(vector<float> budget, float percent) {
+  auto newBudget = vector<float>();
+  for (auto b : budget) {
+    newBudget.push_back(b * percent);
+  }
+  return newBudget;
+}
