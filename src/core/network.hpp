@@ -18,6 +18,11 @@ public:
   string name() { return _name; }
   string mode() { return _mode; }
   string output_directory() { return _output_dir; }
+  shared_ptr<Device> getCPUDevice() {
+    if (_cpu_device != nullptr) {
+      return _cpu_device;
+    }
+  }
   void createSchedule(const string &schedule_file, const string &images,
                       const string &labels);
   void runSchedule(const string &schedule_file, const string &images,
@@ -80,6 +85,7 @@ private:
   /**************************************************************/
   string _name, _mode, _output_dir, _memoryLogfile;
   map<string, shared_ptr<Device>> _devices;
+  shared_ptr<Device> _cpu_device;
   unordered_map<string, shared_ptr<Tensor>> _tensors;
   vector<shared_ptr<Operator>> _operators;
   vector<unique_ptr<primitive>> _primitives;

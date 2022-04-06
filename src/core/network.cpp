@@ -31,6 +31,11 @@ Network::Network(const string name, const string model_file,
     system(cmd.c_str());
   }
   createDevices(_devices, device_file);
+  if (_devices.find("cpu_0") != _devices.end()) {
+    _cpu_device = _devices["cpu_0"];
+  } else {
+    _cpu_device = move(make_shared<Device>("cpu_0", "cpu", 0, 1));
+  }
   _print_memory_usage(_memoryLogfile, "init_program");
   onnx::ModelProto model = loadModel(model_file);
   fillTensors(_tensors, model);
@@ -594,10 +599,11 @@ void Network::_fillModelParameters(onnx::ModelProto &model) {
       throw runtime_error("Could not initialize " + name);
     }
     _tensors[name]->release();
-    _tensors[name]->set_device(_devices["cpu_0"]);
+    auto cpu_device = getCPUDevice();
+    _tensors[name]->set_device(cpu_device);
     _tensors[name]->set_producer("external");
     _tensors[name]->set_memory(move(make_memory(
-        desc, _devices["cpu_0"]->get_engine(), static_cast<void *>(raw_data))));
+        desc, cpu_device->get_engine(), static_cast<void *>(raw_data))));
   }
 }
 
@@ -635,14 +641,14 @@ void Network::_fillInputTensors(const string &data_path,
   }
   float *buffer = v_in.data();
   _tensors[data_tensor_name]->release();
-  _tensors[data_tensor_name]->set_device(_devices["cpu_0"]);
+  auto cpu_device = getCPUDevice();
+  _tensors[data_tensor_name]->set_device(cpu_device);
   _tensors[data_tensor_name]->set_memory(move(make_memory(
-      in_desc, _devices["cpu_0"]->get_engine(), static_cast<void *>(buffer))));
+      in_desc, cpu_device->get_engine(), static_cast<void *>(buffer))));
   _tensors[labels_name]->release();
-  _tensors[labels_name]->set_device(_devices["cpu_0"]);
-  _tensors[labels_name]->set_memory(
-      move(make_memory(l_desc, _devices["cpu_0"]->get_engine(),
-                       static_cast<void *>(v_l.data()))));
+  _tensors[labels_name]->set_device(cpu_device);
+  _tensors[labels_name]->set_memory(move(make_memory(
+      l_desc, cpu_device->get_engine(), static_cast<void *>(v_l.data()))));
 }
 
 void Network::_print_memory_usage(const string memory_file = "",
