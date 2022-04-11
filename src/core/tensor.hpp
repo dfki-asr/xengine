@@ -11,11 +11,13 @@ class Tensor {
 public:
   Tensor(const string n, const memory::dims dims)
       : _name(n), _mem(nullptr), _dims(dims), _desc(memory::desc()),
-        _eng(dnnl::engine()), _device(nullptr), _producer(""), _size(0),
+        _descs(unordered_map<string, memory::desc>()), _eng(dnnl::engine()),
+        _device(nullptr), _producer(""), _size(0),
         _consumers(vector<string>()) {}
 
   Tensor(const string n, const memory::desc d, engine &e)
-      : _name(n), _mem(nullptr), _dims(d.dims()), _desc(d), _eng(e),
+      : _name(n), _mem(nullptr), _dims(d.dims()), _desc(d),
+        _descs(unordered_map<string, memory::desc>()), _eng(e),
         _device(nullptr), _producer(""), _size(0),
         _consumers(vector<string>()) {
     init(d, e);
@@ -26,6 +28,7 @@ public:
       release();
     }
     _device = dev;
+    _descs[dev->name] = d;
     init(d, dev->get_engine());
   }
 
@@ -186,6 +189,14 @@ public:
     return _mem->get_desc();
   }
 
+  memory::desc desc(string dev_name) {
+    if (_descs.find(dev_name) == _descs.end()) {
+      throw runtime_error(_name + " has no valid descriptor for device " +
+                          dev_name + "!");
+    }
+    return _descs[dev_name];
+  }
+
   long long get_size() {
     if (_mem != nullptr) {
       return _mem->get_desc().get_size();
@@ -219,6 +230,7 @@ private:
   unique_ptr<memory> _mem;
   memory::dims _dims;
   memory::desc _desc;
+  unordered_map<string, memory::desc> _descs;
   long long _size;
   dnnl::engine _eng;
   shared_ptr<Device> _device;

@@ -1031,10 +1031,13 @@ float Network::_getTensorCopyCosts(string tensor_name, string src_dev_name,
   auto src_eng = _devices[src_dev_name]->get_engine();
   auto dst_eng = _devices[dst_dev_name]->get_engine();
 
-  // TODO: handle different src and target desc!
-  auto src_desc = _tensors[tensor_name]->desc();
-  auto dst_desc = _tensors[tensor_name]->desc();
-
+  auto src_desc = _tensors[tensor_name]->desc(src_dev_name);
+  auto dst_desc = _tensors[tensor_name]->desc(dst_dev_name);
+  if ((src_desc != dst_desc) && _verbose > 1) {
+    cout << "device switch " + src_dev_name + " to " + dst_dev_name +
+                " causes tensor reordering for tensor "
+         << tensor_name << endl;
+  }
   auto s = stream(dst_eng);
   if (src_eng.get_kind() != engine::kind::cpu) {
     s = stream(src_eng);
