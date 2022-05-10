@@ -154,13 +154,13 @@ void Network::solveILP(const string mpsfile, const string logfile,
   auto edges = vector<pair<string, edge>>();
   auto memory_per_op = vector<float>();
   auto dev_names = vector<string>();
-  auto budget = vector<float>();
+  auto device_budget = vector<float>();
   auto ram = vector<float>();
   size_t numOps = _training ? 2 * _operators.size() : _operators.size();
   // device names
   for (auto dev = _devices.begin(); dev != _devices.end(); dev++) {
     dev_names.push_back(dev->first);
-    budget.push_back(dev->second->budget);
+    device_budget.push_back(dev->second->budget);
     ram.push_back(1.0f);
     if (_verbose > 0) {
       float budget_GB = (dev->second->budget) / 1024.0 / 1024.0 / 1024.0;
@@ -268,10 +268,24 @@ void Network::solveILP(const string mpsfile, const string logfile,
     cout << "Solve ILP ..." << endl;
   }
 
+  float max_memory_tensors_per_device = max_memory_tensors;
+  cout << "budget per device: " << max_memory_tensors_per_device << endl;
+
+  vector<float> network_budget = vector<float>();
+  for (size_t i = 0; i < _devices.size(); i++) {
+    network_budget.push_back(max_memory_tensors_per_device);
+  }
+
+  // use device budget or network budget as full budget
+  auto budget = device_budget;
+
   map<string, vector<float>> budgets = {
       {"auto", budget},
+      {"90_percent", percent_of_budget(budget, 0.9)},
+      {"85_percent", percent_of_budget(budget, 0.85)},
       {"75_percent", percent_of_budget(budget, 0.75)},
       {"50_percent", percent_of_budget(budget, 0.5)},
+      {"40_percent", percent_of_budget(budget, 0.4)},
       {"25_percent", percent_of_budget(budget, 0.25)},
       {"10_percent", percent_of_budget(budget, 0.1)}};
   vector<string> run_order = {"auto", "75_percent", "50_percent", "25_percent",
