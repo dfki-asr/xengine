@@ -54,7 +54,8 @@ private:
   vector<float> _run(const string &data_path, const string &label_path,
                      const size_t num_iterations);
   vector<vector<float>> _benchmark(const string &data_path,
-                                   const string &label_path);
+                                   const string &label_path,
+                                   float &max_memory_tensors);
   void _reinitTensors(vector<string> &tensor_names);
   void _releaseTensors(vector<string> &tensor_names);
   void _resetPrimitives();

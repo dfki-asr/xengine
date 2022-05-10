@@ -89,7 +89,8 @@ void Network::createSchedule(const string &schedule_file, const string &images,
   if (_verbose > 0) {
     cout << "Create schedule file " << schedule_file << endl;
   }
-  _benchmark(images, labels);
+  float max_memory = 0.0f;
+  _benchmark(images, labels, max_memory);
   _writeScheduleFileMinTime(schedule_file);
 }
 
@@ -186,12 +187,18 @@ void Network::solveILP(const string mpsfile, const string logfile,
   }
   matrix copy_costs = matrix(edges.size(), _devices.size(), _devices.size(), 0);
 
+  float max_memory_tensors = 0.0f;
   if (benchmarkILP) {
     if (_verbose > 0) {
       cout << "Benchmark ILP, aquire data ..." << endl;
     }
     // compute costs
-    compute_costs_per_op = _benchmark("", "");
+    compute_costs_per_op = _benchmark("", "", max_memory_tensors);
+    if (_verbose > 0) {
+      cout << "max memory needed for network to save all tensors:\n"
+           << to_string(max_memory_tensors / (1024.0f * 1024.0f)) << " MiB."
+           << endl;
+    }
     // memory costs
     for (size_t opID = 0; opID < _operators.size(); opID++) {
       long long memory_long =
@@ -832,7 +839,8 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
 }
 
 vector<vector<float>> Network::_benchmark(const string &data_path,
-                                          const string &label_path) {
+                                          const string &label_path,
+                                          float &max_memory_tensors) {
   vector<vector<float>> compute_costs;
   // measure performance on all devices
   for (auto dev = _devices.begin(); dev != _devices.end(); dev++) {
@@ -844,6 +852,12 @@ vector<vector<float>> Network::_benchmark(const string &data_path,
     _setSchedule(sched);
     vector<float> opTimes = _run(data_path, label_path, 1);
     compute_costs.push_back(opTimes);
+    // maxMemory
+    float dev_max_memory_tensors = maxMemoryDemandInfo(_tensors, _verbose);
+    cout << "device " << dev_name << " needs: "
+         << to_string(dev_max_memory_tensors / (1024.0f * 1024.0f))
+         << " MiB of memory to save all tensors." << endl;
+    max_memory_tensors = max(max_memory_tensors, dev_max_memory_tensors);
   }
   return compute_costs;
 }
