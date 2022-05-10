@@ -277,7 +277,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
   }
 
   // use device budget or network budget as full budget
-  auto budget = device_budget;
+  auto budget = network_budget;
 
   map<string, vector<float>> budgets = {
       {"auto", budget},
