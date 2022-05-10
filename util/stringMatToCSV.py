@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import argparse
 
 
@@ -46,7 +47,21 @@ def main():
         help="The output csv file.",
     )
     args = parser.parse_args()
-    readStringFile(args.input, args.output)
+    path_in = args.input
+    path_out = args.output
+
+    if os.path.isfile(path_in) and os.path.isfile(path_out):
+        readStringFile(path_in, path_out)
+
+    if os.path.isdir(path_in) and not os.path.isfile(path_out):
+        os.makedirs(path_out, exist_ok=True)
+        listed_files = os.listdir(path_in)
+        for f in listed_files:
+            f_in = "/".join([path_in, f])
+            f_out = "/".join([path_out, f.replace("txt", "csv")])
+            print("in: ", f_in)
+            print("out: ", f_out)
+            readStringFile(f_in, f_out)
 
 
 if __name__ == "__main__":
