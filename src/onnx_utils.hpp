@@ -354,21 +354,34 @@ void maxMemoryDemandInfo(vector<shared_ptr<Operator>> &operators,
        << to_string(op_md) << " MB." << endl;
 }
 
-void maxMemoryDemandInfo(unordered_map<string, shared_ptr<Tensor>> &tensors,
-                         const int verbose = 0) {
+float maxMemoryDemandInfo(unordered_map<string, shared_ptr<Tensor>> &tensors,
+                          const int verbose = 0) {
   float tensor_md = 0.0f;
   for (auto it = tensors.begin(); it != tensors.end(); it++) {
     string t_name = it->first;
-    float bytes = product(it->second->dims()) * sizeof(float);
+    float estimated_bytes = product(it->second->dims()) * sizeof(float);
+    float real_bytes = it->second->get_size();
+    float bytes = max(estimated_bytes, real_bytes);
+    if (verbose > 2) {
+      if (estimated_bytes != real_bytes) {
+        cout << t_name
+             << " size: real: " << to_string(real_bytes / (1024.0f * 1024.0f))
+             << " MiB, estimated: "
+             << to_string(estimated_bytes / (1024.0f * 1024.0f))
+             << ", take: " << to_string(bytes / (1024.0f * 1024.0f)) << endl;
+      }
+    }
     if (verbose > 1) {
       cout << t_name << " with " << to_string(bytes / (1024.0f * 1024.0f))
            << " MB." << endl;
     }
     tensor_md += bytes;
   }
-  tensor_md /= (1024.0f * 1024.0f);
+  float tensor_md_MB = tensor_md / (1024.0f * 1024.0f);
   cout << "max memory if keeping all tensors at the same time: "
-       << to_string(tensor_md) << " MB." << endl;
+       << to_string(tensor_md_MB) << " MiB." << endl;
+
+  return tensor_md;
 }
 
 int getOpIndexFromName(vector<shared_ptr<Operator>> &operators,

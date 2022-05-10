@@ -46,7 +46,7 @@ Network::Network(const string name, const string model_file,
   if (_verbose > 0) {
     cout << endl
          << "********** " << _name << " *** " << _mode << " ********" << endl;
-    maxMemoryDemandInfo(_tensors, _verbose);
+    float max_memory_tensors = maxMemoryDemandInfo(_tensors, _verbose);
     maxMemoryDemandInfo(_operators, _tensors, _training, _verbose);
   }
   auto begin = get_time();
