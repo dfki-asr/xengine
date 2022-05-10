@@ -307,6 +307,20 @@ void Network::solveILP(const string mpsfile, const string logfile,
          << endl;
     solveILP(_mpsfile, _logfile, edges, dev_names, compute_costs_per_op,
              memory_per_op, copy_costs, budgets[budget_name], ram);
+
+    // GPU only
+    const string _mpsfile_gpu = _name + "_gpu.mps";
+    const string _logfile_gpu = _name + "_gpu.log";
+    vector<float> budgets_gpu = vector<float>{0, budgets[budget_name][1] * 2};
+    solveILP(_mpsfile_gpu, _logfile_gpu, edges, dev_names, compute_costs_per_op,
+             memory_per_op, copy_costs, budgets_gpu, ram);
+
+    // CPU only
+    const string _mpsfile_cpu = _name + "_cpu.mps";
+    const string _logfile_cpu = _name + "_cpu.log";
+    vector<float> budgets_cpu = vector<float>{budgets[budget_name][0] * 2, 0};
+    solveILP(_mpsfile_cpu, _logfile_cpu, edges, dev_names, compute_costs_per_op,
+             memory_per_op, copy_costs, budgets_cpu, ram);
   }
 }
 
