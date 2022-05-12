@@ -28,7 +28,8 @@ public:
   void runSchedule(const string &schedule_file, const string &images,
                    const string &labels, const size_t num_iterations);
   void solveILP(const string mpsfile, const string logfile,
-                vector<pair<string, edge>> &edges, vector<string> &dev_names,
+                const string schedulefile, vector<pair<string, edge>> &edges,
+                vector<string> &dev_names,
                 vector<vector<float>> &compute_costs_per_op,
                 vector<float> &memory_per_op, matrix &copy_costs,
                 vector<float> &budget, vector<float> &ram);

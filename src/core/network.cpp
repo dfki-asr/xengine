@@ -104,16 +104,12 @@ void Network::runSchedule(const string &schedule_file, const string &images,
 }
 
 void Network::solveILP(const string mpsfile, const string logfile,
+                       const string schedulefile,
                        vector<pair<string, edge>> &edges,
                        vector<string> &dev_names,
                        vector<vector<float>> &compute_costs_per_op,
                        vector<float> &memory_per_op, matrix &copy_costs,
                        vector<float> &budget, vector<float> &ram) {
-  string budget_str =
-      to_string(static_cast<int>(budget[0] / 1024.0 / 1024.0)) + "MB_" +
-      to_string(static_cast<int>(budget[1] / 1024.0 / 1024.0)) + "MB";
-  string schedulefile = _output_dir + "/" + _name + "_" + _mode + "_" +
-                        budget_str + "_ilp_schedule.txt";
 #ifdef HAS_GUROBI
   auto ilp = ILP_Solver_GRB(_name + "_" + _mode, mpsfile, logfile, edges,
                             dev_names, compute_costs_per_op, memory_per_op,
@@ -296,6 +292,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
         mpsfile.substr(0, mpsfile.length() - 4) + "_budget_" + budget_name;
     const string _mpsfile = _name + ".mps";
     const string _logfile = _name + ".log";
+    const string _schedulefile = _name + "_ilp_schedule.txt";
     cout << endl
          << endl
          << endl
@@ -305,22 +302,25 @@ void Network::solveILP(const string mpsfile, const string logfile,
          << endl
          << endl
          << endl;
-    solveILP(_mpsfile, _logfile, edges, dev_names, compute_costs_per_op,
-             memory_per_op, copy_costs, budgets[budget_name], ram);
+    solveILP(_mpsfile, _logfile, _schedulefile, edges, dev_names,
+             compute_costs_per_op, memory_per_op, copy_costs,
+             budgets[budget_name], ram);
 
     // GPU only
     const string _mpsfile_gpu = _name + "_gpu.mps";
     const string _logfile_gpu = _name + "_gpu.log";
+    const string _schedulefile_gpu = _name + "_gpu_ilp_schedule.txt";
     vector<float> budgets_gpu = vector<float>{0, budgets[budget_name][1] * 2};
-    solveILP(_mpsfile_gpu, _logfile_gpu, edges, dev_names, compute_costs_per_op,
-             memory_per_op, copy_costs, budgets_gpu, ram);
+    solveILP(_mpsfile_gpu, _logfile_gpu, _schedulefile_gpu, edges, dev_names,
+             compute_costs_per_op, memory_per_op, copy_costs, budgets_gpu, ram);
 
     // CPU only
     const string _mpsfile_cpu = _name + "_cpu.mps";
     const string _logfile_cpu = _name + "_cpu.log";
+    const string _schedulefile_cpu = _name + "_cpu_ilp_schedule.txt";
     vector<float> budgets_cpu = vector<float>{budgets[budget_name][0] * 2, 0};
-    solveILP(_mpsfile_cpu, _logfile_cpu, edges, dev_names, compute_costs_per_op,
-             memory_per_op, copy_costs, budgets_cpu, ram);
+    solveILP(_mpsfile_cpu, _logfile_cpu, _schedulefile_cpu, edges, dev_names,
+             compute_costs_per_op, memory_per_op, copy_costs, budgets_cpu, ram);
   }
 }
 
