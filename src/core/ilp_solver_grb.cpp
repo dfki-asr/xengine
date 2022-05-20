@@ -12,10 +12,7 @@ ILP_Solver_GRB::ILP_Solver_GRB(string model_name, string mpsfile,
                                vector<float> budget, vector<float> ram,
                                const int verbose)
     : ILP_Solver(model_name, mpsfile, logfile, edges, devices, compute_costs,
-                 memory_costs, copy_costs, budget, ram, verbose) {
-  _mpsfile = mpsfile.empty() ? _model_name + "_grb.mps" : mpsfile;
-  _logfile = logfile.empty() ? _model_name + "_grb.log" : logfile;
-}
+                 memory_costs, copy_costs, budget, ram, verbose) {}
 ILP_Solver_GRB::~ILP_Solver_GRB() {}
 
 int ILP_Solver_GRB::solve() {
