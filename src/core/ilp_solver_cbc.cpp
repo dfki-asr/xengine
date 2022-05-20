@@ -15,10 +15,7 @@ ILP_Solver_CBC::ILP_Solver_CBC(string model_name, string mpsfile,
                                vector<float> budget, vector<float> ram,
                                const int verbose)
     : ILP_Solver(model_name, mpsfile, logfile, edges, devices, compute_costs,
-                 memory_costs, copy_costs, budget, ram, verbose) {
-  _mpsfile = mpsfile.empty() ? _model_name + "_cbc.mps" : mpsfile;
-  _logfile = logfile.empty() ? _model_name + "_cbc.log" : logfile;
-}
+                 memory_costs, copy_costs, budget, ram, verbose) {}
 ILP_Solver_CBC::~ILP_Solver_CBC() {}
 
 int ILP_Solver_CBC::solve() {
