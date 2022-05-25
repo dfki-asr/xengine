@@ -806,22 +806,38 @@ vector<float> Network::_run(const string &data_path, const string &label_path,
       cout << "F" << endl;
       _F.print();
     }
+    auto dev_names = vector<string>();
+    for (auto dev = _devices.begin(); dev != _devices.end(); dev++) {
+      dev_names.push_back(dev->first);
+    }
     size_t T = _R.get_rows();
     for (auto i = 0; i < num_iterations; i++) {
       for (size_t t = 0; t < T; t++) {
+        cout << "\ntimestep " << to_string(t) << endl;
         // Release
         for (size_t n = 0; n < t; n++) {
-          if ((_S.at(0, t, n) + _S.at(1, t, n)) == 0) {
-            _releaseOp(n);
+          float S_now = 0;
+          for (size_t d = 0; d < _devices.size(); d++) {
+            S_now += _S.at(d, t, n);
+          }
+          if (S_now == 0) {
+            if (t > 0) {
+              float S_last = 0;
+              for (size_t d = 0; d < _devices.size(); d++) {
+                S_last += _S.at(d, t - 1, n);
+              }
+              if (S_last > 0) {
+                _releaseOp(n);
+              }
+            }
           }
         }
         // Compute
         for (size_t n = 0; n <= t; n++) {
-          if (_R.at(0, t, n) == 1) {
-            opTimes.push_back(_computeOp(n, "cpu_0"));
-          }
-          if (_R.at(1, t, n) == 1) {
-            opTimes.push_back(_computeOp(n, "gpu_0"));
+          for (size_t d = 0; d < _devices.size(); d++) {
+            if (_R.at(d, t, n) == 1) {
+              opTimes.push_back(_computeOp(n, dev_names[d]));
+            }
           }
         }
         // measure memory usage after each timestep
