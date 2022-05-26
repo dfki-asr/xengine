@@ -227,10 +227,14 @@ public:
       if (_f_op.input.size() < 4) {
         tensors[mean_name] = move(make_shared<Tensor>(mean_name, stat_dims));
         tensors[mean_name]->init(stat_md, dev);
+        _f_op.input.push_back(mean_name);
+        _b_op.input.push_back(mean_name);
       }
       if (_f_op.input.size() < 5) {
         tensors[var_name] = move(make_shared<Tensor>(var_name, stat_dims));
         tensors[var_name]->init(stat_md, dev);
+        _f_op.input.push_back(var_name);
+        _b_op.input.push_back(var_name);
       }
       if (_fwd_context->mean_mem == nullptr) {
         _fwd_context->mean_mem.reset(
