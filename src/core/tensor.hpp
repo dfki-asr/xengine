@@ -61,6 +61,9 @@ public:
       _mem.release();
       _mem = nullptr;
     }
+    if (_mem != nullptr) {
+      throw runtime_error("tensor release not successful!");
+    }
   }
 
   void set_producer(const string producer) { _producer = producer; }
