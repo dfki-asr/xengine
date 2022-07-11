@@ -5,6 +5,8 @@
 #include <chrono>
 #include <string>
 
+using namespace std;
+
 dnnl::memory::data_type g_data_type = dnnl::memory::data_type::f32;
 
 inline dnnl::memory make_memory(const dnnl::memory::desc &md,
@@ -70,6 +72,16 @@ float get_elapsed_ms(std::chrono::high_resolution_clock::time_point begin) {
   auto duration =
       std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
   return static_cast<float>(duration) * 1e-6;
+}
+
+void print_memory_usage_cpu(const string memory_file = "",
+                            const string event_info = "") {
+  string cmd = "(free mem --byte | grep -v total | tr -s ' ' | cut -d ' ' -f 3 "
+               "| head -n 1 | tr -s \"'\n'\" ' '; echo " +
+               event_info + ")";
+  if (!memory_file.empty())
+    cmd += " >> " + memory_file;
+  system(cmd.c_str());
 }
 
 std::vector<std::vector<std::string>>

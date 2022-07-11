@@ -22,6 +22,42 @@ string value2str(const float value) {
   return s.str();
 }
 
+vector<size_t> getUncoveredEdges(vector<pair<string, edge>> &edges,
+                                 matrix &copy_costs) {
+  vector<size_t> edges_uncovered = vector<size_t>();
+  size_t num_devices = copy_costs.get_cols();
+  // Go through all copy costs and check if we forgot something
+  for (size_t i = 0; i < edges.size(); i++) {
+    float tmp = 0;
+    for (size_t d_ = 0; d_ < num_devices; d_++) {
+      for (size_t d = 0; d < num_devices; d++) {
+        // get copy costs from d -> to d_
+        tmp += copy_costs.at(i, d, d_);
+      }
+    }
+    if (tmp > 0.0f) {
+      continue;
+    } else {
+      edges_uncovered.push_back(i);
+    }
+  }
+  return edges_uncovered;
+}
+
+int getEdgeIndexFromSrcDst(vector<pair<string, edge>> &edges, const size_t src,
+                           const size_t dst) {
+  for (size_t edgeID = 0; edgeID < edges.size(); edgeID++) {
+    if (edges[edgeID].second.get_u() == src &&
+        edges[edgeID].second.get_v() == dst) {
+      return edgeID;
+    }
+  }
+  cout << "Edge " + to_string(src) + "->" + to_string(dst) + " was not found!"
+       << endl;
+  throw runtime_error("Edge " + to_string(src) + "->" + to_string(dst) +
+                      " was not found!");
+}
+
 int getEdgeIndexFromName(vector<pair<string, edge>> &edges,
                          const string edgeName) {
   for (size_t edgeID = 0; edgeID < edges.size(); edgeID++) {
@@ -59,6 +95,9 @@ ILP_Solver::ILP_Solver(string model_name, string mpsfile, string logfile,
   _F_matrix = nullptr;
   _verbose = verbose;
   // init
+  if (_compute_costs.size() < 1) {
+    throw runtime_error("invalid compute costs!");
+  }
   const size_t T = _compute_costs[0].size();
   const size_t E = _edges.size();
   const size_t D = _devices.size();
@@ -104,6 +143,7 @@ ILP_Solver::~ILP_Solver() {
 
 matrix ILP_Solver::get_R() { return *_R_matrix; }
 matrix ILP_Solver::get_S() { return *_S_matrix; }
+matrix ILP_Solver::get_F() { return *_F_matrix; }
 double ILP_Solver::get_minimal_compute_costs() { return _objective_value; }
 double ILP_Solver::get_minimal_memory() { return _minimal_memory; }
 double ILP_Solver::get_maximal_memory() { return _maximal_memory; }
@@ -286,8 +326,8 @@ int ILP_Solver::defineProblemAsMPS() {
               "S" + idx_to_string(d, t, e.second.get_u()));
           const string name_Z_u = get_fixed_length_var_name(
               "Z" + idx_to_string(d, t, e.second.get_u()));
-          const string edgeName = e.first;
-          const size_t edgeIdx = getEdgeIndexFromName(_edges, edgeName);
+          const size_t edgeIdx = getEdgeIndexFromSrcDst(
+              _edges, e.second.get_u(), e.second.get_v());
           // get copy costs from d -> to d_
           const float cc = _copy_costs.at(edgeIdx, d, d_);
           if (cc > 0.0f) {

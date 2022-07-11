@@ -96,6 +96,7 @@ public:
   void printResults();
   matrix get_R();
   matrix get_S();
+  matrix get_F();
   double get_minimal_compute_costs();
   double get_minimal_memory();
   double get_maximal_memory();

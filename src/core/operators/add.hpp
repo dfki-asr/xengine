@@ -21,12 +21,23 @@ struct AddFwdContext {
     fwd_pd.reset();
     add_fwd.reset();
   }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    for (auto src : src_mem) {
+      if (src != nullptr)
+        memory_used_bytes += src->get_desc().get_size();
+    }
+    if (dst_mem != nullptr)
+      memory_used_bytes += dst_mem->get_desc().get_size();
+    return memory_used_bytes;
+  }
 };
 
 class Add : public Operator {
 public:
   Add(string n, vector<string> i, vector<string> o,
-      unordered_map<string, unique_ptr<Tensor>> &tensors, int training)
+      unordered_map<string, shared_ptr<Tensor>> &tensors, int training)
       : Operator(n, "Add", i, o, tensors, training) {
     _f_op = ExecutionOp("fwd_" + n, "fwd", i, o);
     _b_op = ExecutionOp("bwd_" + n, "bwd", vector<string>{"diff_" + o.at(0)},
@@ -35,20 +46,28 @@ public:
     init(tensors);
   }
   ~Add() { reset_fwd_primitives(); }
-  void reset_fwd_primitives() { _fwd_context.reset(); }
+  void reset_fwd_primitives() {
+    if (_f_device != nullptr && _fwd_context != nullptr &&
+        _track_only_tensor_memory == 0) {
+      _f_device->memory_used -= _fwd_context->get_memory_used();
+    }
+    _fwd_context.reset();
+  }
 
-  void forward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void forward(shared_ptr<Device> dev,
+               unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
+    _f_device = dev;
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto out_name = _f_op.output.at(0);
-    auto time_name = getForwardTimeName(eng);
+    auto time_name = getForwardTimeName(dev->name);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       _fwd_context.reset(new AddFwdContext());
       timings[time_name]["create"] = get_elapsed_ms(time_create);
     }
-    auto s = stream(eng);
+    auto s = dev->get_stream(0);
     vector<memory::desc> src_descs;
     vector<float> scales;
     for (size_t i = 0; i < _f_op.input.size(); ++i) {
@@ -72,8 +91,11 @@ public:
       _fwd_context->add_fwd.reset(new sum(*_fwd_context->fwd_pd));
       _fwd_context->dst_mem.reset(
           new memory(_fwd_context->fwd_pd.get()->dst_desc(), eng));
-      tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), eng);
+      tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), dev);
       timings[time_name]["create"] += get_elapsed_ms(time_create);
+      if (_track_only_tensor_memory == 0) {
+        dev->memory_used += _fwd_context->get_memory_used();
+      }
     }
     // reorders
     unordered_map<int, memory> args;
@@ -95,10 +117,12 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void backward(shared_ptr<Device> dev,
+                unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
+    _b_device = dev;
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto out_diff_a_name = _b_op.output.at(0);
     auto out_diff_b_name = _b_op.output.at(1);
     auto in_diff_name = _b_op.input.at(0);
@@ -106,16 +130,16 @@ public:
     auto src_b_md = tensors[_f_op.input.at(1)]->desc();
     assert(src_a_md == src_b_md);
     assert(tensors.find(in_diff_name) != tensors.end());
-    auto time_name = getBackwardTimeName(eng);
+    auto time_name = getBackwardTimeName(dev->name);
     // get memory
     auto in_diff_mem = make_memory(src_a_md, eng);
     // reorders
-    auto s = stream(eng);
+    auto s = dev->get_stream(0);
     timings[time_name][in_diff_name] = maybe_do_reorder(
         tensors[in_diff_name]->get_memory(), in_diff_mem, s, measure_time);
     // execute
-    tensors[out_diff_a_name]->init(src_a_md, eng);
-    tensors[out_diff_b_name]->init(src_b_md, eng);
+    tensors[out_diff_a_name]->init(src_a_md, dev);
+    tensors[out_diff_b_name]->init(src_b_md, dev);
     tensors[out_diff_a_name]->set_memory(in_diff_mem);
     tensors[out_diff_b_name]->set_memory(in_diff_mem);
     timings[time_name]["create"] = 0.0f;

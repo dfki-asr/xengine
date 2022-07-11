@@ -4,6 +4,7 @@
 #include "operators/concat.hpp"
 #include "operators/conv.hpp"
 #include "operators/convtranspose.hpp"
+#include "operators/dice_loss.hpp"
 #include "operators/dropout.hpp"
 #include "operators/gemm.hpp"
 #include "operators/globalavgpool.hpp"

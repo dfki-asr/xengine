@@ -32,8 +32,9 @@ public:
 class Operator {
 public:
   Operator(string n, string t, vector<string> i, vector<string> o,
-           unordered_map<string, unique_ptr<Tensor>> &tensors, int train)
-      : name(n), type(t), input(i), output(o), training(train) {}
+           unordered_map<string, shared_ptr<Tensor>> &tensors, int train)
+      : name(n), type(t), input(i), output(o), training(train),
+        _f_device(nullptr), _b_device(nullptr), _track_only_tensor_memory(1) {}
   string name;
   string type;
   int training;
@@ -43,14 +44,12 @@ public:
   unordered_map<string, float> memory_consumption;
   ExecutionOp _f_op;
   ExecutionOp _b_op;
-  string getForwardTimeName(const engine &eng) {
-    return "fwd_" + getDeviceName(eng);
-  }
-  string getBackwardTimeName(const engine &eng) {
-    return "bwd_" + getDeviceName(eng);
-  }
-  string getDeviceName(const engine &eng) {
-    return (eng.get_kind() == dnnl::engine::kind::cpu) ? "cpu_0" : "gpu_0";
+  shared_ptr<Device> _f_device;
+  shared_ptr<Device> _b_device;
+  unsigned int _track_only_tensor_memory;
+  string getForwardTimeName(const string dev_name) { return "fwd_" + dev_name; }
+  string getBackwardTimeName(const string dev_name) {
+    return "bwd_" + dev_name;
   }
   prop_kind getMode(const int training) {
     return training ? prop_kind::forward_training
@@ -60,13 +59,13 @@ public:
                        memory::format_tag tag = memory::format_tag::any) {
     return memory::desc(dims, g_data_type, tag);
   }
-  void init(unordered_map<string, unique_ptr<Tensor>> &tensors) {
+  void init(unordered_map<string, shared_ptr<Tensor>> &tensors) {
     // forward
     for (auto i : _f_op.input) {
       tensors[i]->add_consumer(_f_op.name);
     }
     for (auto i : _f_op.output) {
-      tensors[i]->producer = _f_op.name;
+      tensors[i]->set_producer(_f_op.name);
       _f_op.memory_consumption +=
           product(tensors[i]->dims()) * sizeof(g_data_type);
     }
@@ -79,21 +78,48 @@ public:
       }
       for (auto i : _b_op.output) {
         if (tensors.find(i) != tensors.end()) {
-          tensors[i]->producer = _b_op.name;
+          tensors[i]->set_producer(_b_op.name);
           _b_op.memory_consumption +=
               product(tensors[i]->dims()) * sizeof(g_data_type);
         }
       }
     }
   }
-  float getFwdMemoryConsumption() { return _f_op.memory_consumption; }
-  float getBwdMemoryConsumption() { return _b_op.memory_consumption; }
-  virtual void forward(Device &dev,
-                       unordered_map<string, unique_ptr<Tensor>> &tensors,
+
+  long long
+  getFwdMemoryConsumption(unordered_map<string, shared_ptr<Tensor>> &tensors) {
+    long long memory_usage = 0;
+    for (auto i : _f_op.input) {
+      if (tensors[i]->producer() == "external") {
+        memory_usage += tensors[i]->get_size();
+      }
+    }
+    for (auto i : _f_op.output) {
+      memory_usage += tensors[i]->get_size();
+    }
+    return memory_usage;
+  }
+
+  long long
+  getBwdMemoryConsumption(unordered_map<string, shared_ptr<Tensor>> &tensors) {
+    long long memory_usage = 0;
+    for (auto i : _b_op.input) {
+      if (tensors[i]->producer() == "external") {
+        memory_usage += tensors[i]->get_size();
+      }
+    }
+    for (auto i : _b_op.output) {
+      memory_usage += tensors[i]->get_size();
+    }
+    return memory_usage;
+  }
+
+  virtual void forward(shared_ptr<Device> dev,
+                       unordered_map<string, shared_ptr<Tensor>> &tensors,
                        memory::format_tag tag = memory::format_tag::any,
                        int measure_time = 0) = 0;
-  virtual void backward(Device &dev,
-                        unordered_map<string, unique_ptr<Tensor>> &tensors,
+  virtual void backward(shared_ptr<Device> dev,
+                        unordered_map<string, shared_ptr<Tensor>> &tensors,
                         memory::format_tag tag = memory::format_tag::any,
                         int measure_time = 0) = 0;
   virtual void reset_fwd_primitives() {}
@@ -104,7 +130,7 @@ public:
 class Operator_With_Weights : public Operator {
 public:
   Operator_With_Weights(string n, string t, vector<string> i, vector<string> o,
-                        unordered_map<string, unique_ptr<Tensor>> &tensors,
+                        unordered_map<string, shared_ptr<Tensor>> &tensors,
                         int training)
       : Operator(n, t, i, o, tensors, training) {
     auto b_i = vector<string>{"diff_" + o.at(0)};

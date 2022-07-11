@@ -7,7 +7,7 @@ class GlobalAveragePool : public AveragePool {
 public:
   GlobalAveragePool(string n, vector<string> i, vector<string> o,
                     memory::dims k,
-                    unordered_map<string, unique_ptr<Tensor>> &tensors,
+                    unordered_map<string, shared_ptr<Tensor>> &tensors,
                     int training)
       : AveragePool(n, i, o, {1, 1}, k, {0, 0, 0, 0}, tensors, training) {}
 };

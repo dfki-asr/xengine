@@ -13,12 +13,12 @@ using namespace google::protobuf;
 using ft = memory::format_tag;
 using dt = memory::data_type;
 
-ModelProto load_model(const string &model_path) {
+ModelProto loadModel(const string &path) {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
-  ifstream in(model_path, ios_base::binary);
+  ifstream f(path, ios_base::binary);
   ModelProto model;
-  model.ParseFromIstream(&in);
-  in.close();
+  model.ParseFromIstream(&f);
+  f.close();
   checker::check_model(model);
   shape_inference::InferShapes(model);
   checker::check_model(model);
@@ -269,18 +269,18 @@ inline float _rand_float() {
 }
 
 inline void
-insert_nonInput_tensors(unordered_map<string, unique_ptr<Tensor>> &tensors,
+insert_nonInput_tensors(unordered_map<string, shared_ptr<Tensor>> &tensors,
                         const RepeatedPtrField<ValueInfoProto> &onnx_info) {
   for (auto info : onnx_info) {
     const auto name = info.name();
     const auto shape = info.type().tensor_type().shape();
     const auto dims = _get_dim_from_shape(shape);
-    tensors.emplace(name, move(make_unique<Tensor>(name, dims)));
+    tensors.emplace(name, move(make_shared<Tensor>(name, dims)));
   }
 }
 
 inline void
-insert_input_tensors(unordered_map<string, unique_ptr<Tensor>> &tensors,
+insert_input_tensors(unordered_map<string, shared_ptr<Tensor>> &tensors,
                      const GraphProto &graph) {
   auto onnx_info = graph.input();
   // Input
@@ -289,13 +289,22 @@ insert_input_tensors(unordered_map<string, unique_ptr<Tensor>> &tensors,
   const auto first_node_dims =
       _get_dim_from_shape(first_node.type().tensor_type().shape());
   tensors.emplace(first_node_name,
-                  move(make_unique<Tensor>(first_node_name, first_node_dims)));
+                  move(make_shared<Tensor>(first_node_name, first_node_dims)));
   // Labels
   auto last_node = graph.output()[0];
   const auto last_node_dims =
       _get_dim_from_shape(last_node.type().tensor_type().shape());
   memory::dims label_dims = memory::dims({last_node_dims.at(0), 1});
-  tensors.emplace("labels", move(make_unique<Tensor>("labels", label_dims)));
+  if (graph.name() == "unet2D") {
+    label_dims = memory::dims(
+        {last_node_dims.at(0), 1, last_node_dims.at(2), last_node_dims.at(3)});
+  }
+  if (graph.name() == "unet3D") {
+    label_dims = memory::dims({last_node_dims.at(0), 1, last_node_dims.at(2),
+                               last_node_dims.at(3), last_node_dims.at(4)});
+  }
+
+  tensors.emplace("labels", move(make_shared<Tensor>("labels", label_dims)));
   // Parameters
   auto initializers = graph.initializer();
   assert(initializers.size() == onnx_info.size() - 1);
@@ -304,19 +313,132 @@ insert_input_tensors(unordered_map<string, unique_ptr<Tensor>> &tensors,
     assert(onnx_info.data_type() == 1);
     const auto name = onnx_info.name();
     const memory::dims dims = _get_dim_from_shape(onnx_info.dims());
-    tensors.emplace(name, move(make_unique<Tensor>(name, dims)));
+    tensors.emplace(name, move(make_shared<Tensor>(name, dims)));
   }
 }
 
-inline unordered_map<string, unique_ptr<Tensor>>
-get_tensors(const ModelProto &model) {
-  auto tensors = unordered_map<string, unique_ptr<Tensor>>();
+void fillTensors(unordered_map<string, shared_ptr<Tensor>> &tensors,
+                 const ModelProto &model) {
   insert_nonInput_tensors(tensors, model.graph().value_info());
   insert_nonInput_tensors(tensors, model.graph().output());
   insert_input_tensors(tensors, model.graph());
   tensors.emplace("loss",
-                  move(make_unique<Tensor>("loss", tensors["labels"]->dims())));
-  return tensors;
+                  move(make_shared<Tensor>("loss", tensors["labels"]->dims())));
+}
+
+void maxMemoryDemandInfo(vector<shared_ptr<Operator>> &operators,
+                         unordered_map<string, shared_ptr<Tensor>> &tensors,
+                         const int training, const int verbose = 0) {
+  float op_md = 0.0f;
+  for (auto op : operators) {
+    float bytes = op->getFwdMemoryConsumption(tensors);
+    if (verbose > 1) {
+      cout << op->name << " fwd with " << to_string(bytes / (1024.0f * 1024.0f))
+           << " MB." << endl;
+    }
+    op_md += bytes;
+  }
+  if (training) {
+    for (size_t i = 0; i < operators.size(); i++) {
+      auto opID = operators.size() - i - 1;
+      float bytes = operators.at(opID)->getBwdMemoryConsumption(tensors);
+      if (verbose > 1) {
+        cout << operators.at(opID)->name << " bwd with "
+             << to_string(bytes / (1024.0f * 1024.0f)) << " MB." << endl;
+      }
+      op_md += bytes;
+    }
+  }
+  op_md /= (1024.0f * 1024.0f);
+  cout << "max memory if keeping all operators at the same time: "
+       << to_string(op_md) << " MB." << endl;
+}
+
+float maxMemoryDemandInfo(unordered_map<string, shared_ptr<Tensor>> &tensors,
+                          const int verbose = 0) {
+  float tensor_md = 0.0f;
+  for (auto it = tensors.begin(); it != tensors.end(); it++) {
+    string t_name = it->first;
+    float estimated_bytes = product(it->second->dims()) * sizeof(float);
+    float real_bytes = it->second->get_size();
+    float bytes = max(estimated_bytes, real_bytes);
+    if (verbose > 2) {
+      if (estimated_bytes != real_bytes) {
+        cout << t_name
+             << " size: real: " << to_string(real_bytes / (1024.0f * 1024.0f))
+             << " MiB, estimated: "
+             << to_string(estimated_bytes / (1024.0f * 1024.0f))
+             << ", take: " << to_string(bytes / (1024.0f * 1024.0f)) << endl;
+      }
+    }
+    if (verbose > 1) {
+      cout << t_name << " with " << to_string(bytes / (1024.0f * 1024.0f))
+           << " MB." << endl;
+    }
+    tensor_md += bytes;
+  }
+  float tensor_md_MB = tensor_md / (1024.0f * 1024.0f);
+  cout << "max memory if keeping all tensors at the same time: "
+       << to_string(tensor_md_MB) << " MiB." << endl;
+
+  return tensor_md;
+}
+
+int getOpIndexFromName(vector<shared_ptr<Operator>> &operators,
+                       const string opName) {
+  for (size_t opID = 0; opID < operators.size(); opID++) {
+    if ("fwd_" + operators[opID]->name == opName) {
+      return opID;
+    }
+  }
+  for (size_t i = 0; i < operators.size(); i++) {
+    auto opID = operators.size() - i - 1;
+    if ("bwd_" + operators[opID]->name == opName) {
+      return operators.size() + i;
+    }
+  }
+  throw runtime_error("Operator " + opName + " was not found!");
+}
+
+int getDevIndexFromName(map<string, shared_ptr<Device>> &devices,
+                        const string devName) {
+  size_t idx = 0;
+  for (auto dev = devices.begin(); dev != devices.end(); dev++) {
+    if (dev->first == devName) {
+      return idx;
+    }
+    idx += 1;
+  }
+  throw runtime_error("Device " + devName + " was not found!");
+}
+
+vector<string> selectDevicePerOp(vector<shared_ptr<Operator>> &operators,
+                                 vector<string> dev_names, const int training,
+                                 const int srcDifferent = 0) {
+  auto device_per_op = vector<string>();
+  for (size_t i = 0; i < operators.size(); i++) {
+    size_t dev_idx = (i % dev_names.size());
+    auto dev_name = dev_names[dev_idx];
+    device_per_op.push_back(dev_name);
+  }
+  if (training) {
+    for (size_t i = 0; i < operators.size(); i++) {
+      size_t schedID = operators.size() + i;
+      size_t dev_idx = (schedID % dev_names.size());
+      string dev_name = dev_names[dev_idx];
+      if (srcDifferent) {
+        int opID = 2 * operators.size() - schedID - 2;
+        if (opID >= 0) {
+          if (dev_name == device_per_op[opID]) {
+            size_t idx = dev_idx == 1 ? 0 : 1;
+            dev_name = dev_names[idx];
+          }
+        }
+      }
+      device_per_op.push_back(dev_name);
+    }
+  }
+  return device_per_op;
 }
 
 inline vector<string>
@@ -359,9 +481,18 @@ get_params_from_proto(const NodeProto &node,
   }
 }
 
-void create_devices(map<string, shared_ptr<Device>> &devices,
-                    const string &devices_path) {
-  for (auto i : parse_input_file(devices_path)) {
-    devices[i.at(0)] = move(make_shared<Device>(i));
+void createDevices(map<string, shared_ptr<Device>> &devices,
+                   const string &device_file) {
+  for (auto d : parse_input_file(device_file)) {
+    const string device_name = d.at(0);
+    devices[device_name] = move(make_shared<Device>(d));
   }
+}
+
+vector<float> percent_of_budget(vector<float> budget, float percent) {
+  auto newBudget = vector<float>();
+  for (auto b : budget) {
+    newBudget.push_back(b * percent);
+  }
+  return newBudget;
 }

@@ -23,6 +23,17 @@ struct PoolFwdContext {
     fwd_pd.reset();
     pool_fwd.reset();
   }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    if (src_mem != nullptr)
+      memory_used_bytes += src_mem->get_desc().get_size();
+    if (dst_mem != nullptr)
+      memory_used_bytes += dst_mem->get_desc().get_size();
+    if (ws_mem != nullptr)
+      memory_used_bytes += ws_mem->get_desc().get_size();
+    return memory_used_bytes;
+  }
 };
 
 struct PoolBwdContext {
@@ -45,13 +56,24 @@ struct PoolBwdContext {
     bwd_pd.reset();
     pool_bwd.reset();
   }
+
+  size_t get_memory_used() {
+    size_t memory_used_bytes = 0;
+    if (in_diff_mem != nullptr)
+      memory_used_bytes += in_diff_mem->get_desc().get_size();
+    if (ws_mem != nullptr)
+      memory_used_bytes += ws_mem->get_desc().get_size();
+    if (out_diff_mem != nullptr)
+      memory_used_bytes += out_diff_mem->get_desc().get_size();
+    return memory_used_bytes;
+  }
 };
 
 class Pool : public Operator {
 public:
   Pool(string n, string t, vector<string> i, vector<string> o, memory::dims s,
        memory::dims k, memory::dims p,
-       unordered_map<string, unique_ptr<Tensor>> &tensors, int training)
+       unordered_map<string, shared_ptr<Tensor>> &tensors, int training)
       : Operator(n, t, i, o, tensors, training) {
     stride = s;
     kernel = k;
@@ -84,20 +106,34 @@ public:
     reset_fwd_primitives();
     reset_bwd_primitives();
   }
-  void reset_fwd_primitives() { _fwd_context.reset(); }
-  void reset_bwd_primitives() { _bwd_context.reset(); }
+  void reset_fwd_primitives() {
+    if (_f_device != nullptr && _fwd_context != nullptr &&
+        _track_only_tensor_memory == 0) {
+      _f_device->memory_used -= _fwd_context->get_memory_used();
+    }
+    _fwd_context.reset();
+  }
+  void reset_bwd_primitives() {
+    if (_b_device != nullptr && _bwd_context != nullptr &&
+        _track_only_tensor_memory == 0) {
+      _b_device->memory_used -= _bwd_context->get_memory_used();
+    }
+    _bwd_context.reset();
+  }
 
-  void forward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void forward(shared_ptr<Device> dev,
+               unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
+    _f_device = dev;
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto src_name = _f_op.input.at(0);
     auto out_name = _f_op.output.at(0);
     auto src_dims = tensors[src_name]->dims();
     auto src_md = tensors[src_name]->desc();
     auto dst_dims = get_output_dims(src_dims, src_dims.at(1), kernel, stride,
                                     padding_l, padding_r);
-    auto time_name = getForwardTimeName(eng);
+    auto time_name = getForwardTimeName(dev->name);
     if (_fwd_context == nullptr) {
       auto time_create = get_time();
       _fwd_context.reset(new PoolFwdContext());
@@ -112,19 +148,22 @@ public:
           new memory(_fwd_context->fwd_pd.get()->src_desc(), eng));
       _fwd_context->dst_mem.reset(
           new memory(_fwd_context->fwd_pd.get()->dst_desc(), eng));
-      tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), eng);
+      tensors[out_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), dev);
       if (training) {
         auto ws_name = _f_op.output.at(1);
         if (_fwd_context->ws_mem == nullptr) {
           _fwd_context->ws_mem.reset(
               new memory(_fwd_context->fwd_pd.get()->dst_desc(), eng));
-          tensors[ws_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), eng);
+          tensors[ws_name]->init(_fwd_context->fwd_pd.get()->dst_desc(), dev);
         }
       }
       timings[time_name]["create"] = get_elapsed_ms(time_create);
+      if (_track_only_tensor_memory == 0) {
+        dev->memory_used += _fwd_context->get_memory_used();
+      }
     }
     // reorders
-    auto s = stream(eng);
+    auto s = dev->get_stream(0);
     timings[time_name][src_name] =
         maybe_do_reorder(tensors[src_name]->get_memory(),
                          *_fwd_context->src_mem, s, measure_time);
@@ -148,17 +187,19 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void backward(shared_ptr<Device> dev,
+                unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
+    _b_device = dev;
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto out_name = _f_op.output.at(0);
     auto ws_name = _b_op.input.at(1);
     auto in_diff_name = _b_op.input.at(0);
     auto out_diff_name = _b_op.output.at(0);
     auto src_md = tensors[_f_op.input.at(0)]->desc();
     auto dst_md = tensors[out_name]->desc();
-    auto time_name = getBackwardTimeName(eng);
+    auto time_name = getBackwardTimeName(dev->name);
     if (_bwd_context == nullptr) {
       auto time_create = get_time();
       _bwd_context.reset(new PoolBwdContext());
@@ -184,11 +225,14 @@ public:
       _bwd_context->out_diff_mem.reset(
           new memory(_bwd_context->bwd_pd.get()->diff_src_desc(), eng));
       tensors[out_diff_name]->init(_bwd_context->bwd_pd.get()->diff_src_desc(),
-                                   eng);
+                                   dev);
       timings[time_name]["create"] = get_elapsed_ms(time_create);
+      if (_track_only_tensor_memory == 0) {
+        dev->memory_used += _bwd_context->get_memory_used();
+      }
     }
     // reorders
-    auto s = stream(eng);
+    auto s = dev->get_stream(0);
     timings[time_name][in_diff_name] =
         maybe_do_reorder(tensors[in_diff_name]->get_memory(),
                          *_bwd_context->in_diff_mem, s, measure_time);

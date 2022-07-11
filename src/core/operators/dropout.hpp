@@ -93,7 +93,7 @@ inline void dropout(dnnl::memory &in_mem, dnnl::memory &out_mem,
 class Dropout : public Operator {
 public:
   Dropout(string n, vector<string> i, vector<string> o, float p,
-          unordered_map<string, unique_ptr<Tensor>> &tensors, int training)
+          unordered_map<string, shared_ptr<Tensor>> &tensors, int training)
       : Operator(n, "Dropout", i, o, tensors, training) {
     probability = p;
     _f_op = ExecutionOp("fwd_" + n, "fwd", i, o);
@@ -102,22 +102,24 @@ public:
     init(tensors);
   }
 
-  void forward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void forward(shared_ptr<Device> dev,
+               unordered_map<string, shared_ptr<Tensor>> &tensors,
                memory::format_tag outputTag, const int measure_time) {
+    _f_device = dev;
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto time_exe = get_time();
     auto src_name = _f_op.input.at(0);
     auto out_name = _f_op.output.at(0);
-    auto time_name = getForwardTimeName(eng);
+    auto time_name = getForwardTimeName(dev->name);
     if (training) {
       auto src_md = tensors[src_name]->desc();
       // get memory
       auto src_mem = make_memory(src_md, eng);
-      tensors[out_name]->init(src_md, eng);
+      tensors[out_name]->init(src_md, dev);
       auto dst_mem = tensors[out_name]->get_memory();
       // reorders
-      auto s = stream(eng);
+      auto s = dev->get_stream(0);
       timings[time_name][src_name] = maybe_do_reorder(
           tensors[src_name]->get_memory(), src_mem, s, measure_time);
       // execute
@@ -141,21 +143,23 @@ public:
     }
   }
 
-  void backward(Device &dev, unordered_map<string, unique_ptr<Tensor>> &tensors,
+  void backward(shared_ptr<Device> dev,
+                unordered_map<string, shared_ptr<Tensor>> &tensors,
                 memory::format_tag outputTag, const int measure_time) {
+    _b_device = dev;
     auto begin = get_time();
-    auto eng = dev.get_engine();
+    auto eng = dev->get_engine();
     auto in_diff_name = _b_op.input.at(0);
     auto out_diff_name = _b_op.output.at(0);
     auto src_md = tensors[_f_op.input.at(0)]->desc();
     assert(tensors.find(in_diff_name) != tensors.end());
-    auto time_name = getBackwardTimeName(eng);
+    auto time_name = getBackwardTimeName(dev->name);
     // get memory
     auto in_diff_mem = make_memory(src_md, eng);
-    tensors[out_diff_name]->init(src_md, eng);
+    tensors[out_diff_name]->init(src_md, dev);
     auto dst_mem = tensors[out_diff_name]->get_memory();
     // reorders
-    auto s = stream(eng);
+    auto s = dev->get_stream(0);
     timings[time_name][in_diff_name] = maybe_do_reorder(
         tensors[in_diff_name]->get_memory(), in_diff_mem, s, measure_time);
     auto time_exe = get_time();

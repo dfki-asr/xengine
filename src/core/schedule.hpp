@@ -71,9 +71,8 @@ public:
 class Schedule {
 public:
   Schedule() { decisions = vector<unique_ptr<ScheduleDecision>>(); }
-  Schedule(const string &schedule_path) {
+  Schedule(vector<vector<string>> info) {
     decisions = vector<unique_ptr<ScheduleDecision>>();
-    vector<vector<string>> info = parse_input_file(schedule_path);
     for (auto i : info) {
       const string opID = i.at(0);
       const string engID = i.at(1);
@@ -82,15 +81,17 @@ public:
       decisions.push_back(
           move(make_unique<ExecuteOperator>(opID, engID, streamID, tag)));
     }
-  };
-  size_t size() { return decisions.size(); }
-  ScheduleDecision *get(const int opID) { return decisions.at(opID).get(); }
+  }
+  Schedule(string schedule_path) : Schedule(parse_input_file(schedule_path)) {}
   ~Schedule() {
     for (auto i = 0; i < decisions.size(); i++) {
       decisions.at(i).reset();
       decisions.at(i).release();
     }
   }
+  size_t size() { return decisions.size(); }
+  int empty() { return decisions.size() == 0; }
+  ScheduleDecision *get(const int opID) { return decisions.at(opID).get(); }
   void print() {
     for (auto i = 0; i < decisions.size(); i++) {
       if (decisions.at(i)->type == DecisionType::PRODUCE_TENSOR) {

@@ -11,19 +11,25 @@ using namespace dnnl;
 
 class Network {
 public:
-  Network(const string model_name, const string &model_path,
-          const string &devices_path, const int training,
-          const int verbose = 0);
+  Network(const string name, const string model_file, const string device_file,
+          const int training, const string output_dir, const int verbose = 0);
   ~Network();
-  void init();
-  void run(const string &data_path, const string &label_path,
-           const size_t num_iterations);
-  void benchmark(const string &data_path, const string &label_path);
-  void writeScheduleFile(const string &schedule_file);
-  void setSchedule(const string &schedule_file);
-  void unsetSchedule();
+
+  string name() { return _name; }
+  string mode() { return _mode; }
+  string output_directory() { return _output_dir; }
+  shared_ptr<Device> getCPUDevice() {
+    if (_cpu_device != nullptr) {
+      return _cpu_device;
+    }
+  }
+  void createSchedule(const string &schedule_file, const string &images,
+                      const string &labels);
+  void runSchedule(const string &schedule_file, const string &images,
+                   const string &labels, const size_t num_iterations);
   void solveILP(const string mpsfile, const string logfile,
-                vector<pair<string, edge>> &edges, vector<string> &dev_names,
+                const string schedulefile, vector<pair<string, edge>> &edges,
+                vector<string> &dev_names,
                 vector<vector<float>> &compute_costs_per_op,
                 vector<float> &memory_per_op, matrix &copy_costs,
                 vector<float> &budget, vector<float> &ram);
@@ -31,58 +37,61 @@ public:
                 const string &data_path, const string &label_path,
                 const int benchmarkILP = 1);
   void solveILP(const string mpsfile, const string logfile);
-  void maxMemoryDemandInfo();
 
 private:
-  void _Xpass(const int is_fwd_pass);
-  void _forward();
-  void _backward();
-  void _preprocessModel(unordered_map<string, vector<string>> &inputs,
+  void _preprocessModel(onnx::ModelProto &model,
+                        unordered_map<string, vector<string>> &inputs,
                         unordered_map<string, vector<string>> &outputs);
-  void _initOperators(unordered_map<string, vector<string>> &inputs,
-                      unordered_map<string, vector<string>> &outputs);
-  void _insertSoftmax();
-  void _fillModelParameters();
+  void _init(onnx::ModelProto &model,
+             unordered_map<string, vector<string>> &inputs,
+             unordered_map<string, vector<string>> &outputs);
+  void _fillModelParameters(onnx::ModelProto &model);
   void _fillInputTensors(const string &data_path, const string &label_path,
                          const size_t &batch);
+  void _print_memory_usage(const string memory_file, const string event_info);
+  /**************************************************************/
+  void _releaseOp(const size_t releaseSchedID);
+  float _computeOp(const size_t computeSchedID, const string devName);
+  vector<float> _run(const string &data_path, const string &label_path,
+                     const size_t num_iterations);
+  vector<vector<float>> _benchmark(const string &data_path,
+                                   const string &label_path,
+                                   float &max_memory_tensors);
+  void _reinitTensors(vector<string> &tensor_names);
+  void _releaseTensors(vector<string> &tensor_names);
+  void _resetPrimitives();
+  /**************************************************************/
+  vector<vector<string>> _createScheduleStringVec(const string device_name);
+  vector<vector<string>>
+  _createScheduleStringVec(vector<string> &device_per_op);
+  void _setSchedule(vector<vector<string>> &sched);
+  void _setSchedule(const string &schedulefile);
+  void _unsetSchedule();
+  /**************************************************************/
+  void _scheduleOperatorMinTime(const size_t &opID, const string prefix,
+                                string &best_schedule);
+  void _writeScheduleFileMinTime(const string &schedulefile);
+  /**************************************************************/
   ExecuteOperator _getExecuteOperator(const int ID);
-  void _scheduleOperator(const size_t &opID, const string prefix,
-                         string &best_schedule);
   float _getTimeOfOp(const int opID, const string prefix,
                      const string time_type);
-  int _getOpIndexFromName(const string opName);
-  int _getDevIndexFromName(const string devName);
-  vector<string> _selectDevicePerOp(vector<string> dev_names,
-                                    const int srcDifferent = 0);
-  vector<size_t> _get_uncovered_edges(vector<pair<string, edge>> &edges,
-                                      matrix &copy_costs);
-  void _fillCopyCosts(matrix &copy_costs, vector<string> &device_per_op,
-                      vector<pair<string, edge>> &edges);
-  void _collectConsumerCopyCosts(const int opID, const int d,
-                                 vector<string> outputs,
-                                 vector<string> &device_per_op,
-                                 vector<pair<string, edge>> &edges,
-                                 matrix &copy_costs);
-  void _maybe_provide_dummy_inputs(vector<string> &inputs);
-  void _maybe_release_outputs(vector<string> &outputs);
-  void _maybe_release_op(const int opID, const int schedID);
-  void _reset_op_primitives();
-
-  onnx::ModelProto _model;
-  vector<string> _operator_names;
+  void _ilpMatrices2Schedule(const string &schedulefile);
+  /**************************************************************/
+  float _getTensorCopyCosts(string tensor_name, string src_dev_name,
+                            string dst_dev_name);
+  void _fillCopyCostsMatrix(matrix &copy_costs,
+                            vector<pair<string, edge>> &edges);
+  /**************************************************************/
+  string _name, _mode, _output_dir, _memoryLogfile;
   map<string, shared_ptr<Device>> _devices;
-  unordered_map<string, unique_ptr<Tensor>> _tensors;
-  vector<unique_ptr<Operator>> _operators;
+  shared_ptr<Device> _cpu_device;
+  unordered_map<string, shared_ptr<Tensor>> _tensors;
+  vector<shared_ptr<Operator>> _operators;
   vector<unique_ptr<primitive>> _primitives;
   vector<unordered_map<int, memory>> _primitive_args;
   unique_ptr<Schedule> _schedule;
-  string _default_device;
-  int _measure_time;
-  int _verbose;
+  matrix _R, _S, _F;
   int _training;
-  int _benchmark_mode;
-  int _opsToKeep;
-  string _mode;
-  string _model_name;
+  int _verbose, _measure_time, _opsToKeep;
 };
 #endif
