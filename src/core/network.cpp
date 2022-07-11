@@ -241,10 +241,10 @@ void Network::solveILP(const string mpsfile, const string logfile,
       }
       cout << _name << " " << _mode << " has memory costs:" << endl;
       for (auto m : memory_per_op) {
-        printf("%0.3lf MB  ", m / 1e6);
+        printf("%0.3lf MiB  ", m / 1024.0 / 1024.0);
       }
       cout << endl;
-      cout << "Edges: " << endl;
+      cout << edges.size() << " edges: " << endl;
       for (auto e : edges) {
         cout << "(" << e.second.get_u() << ", " << e.second.get_v() << ")"
              << "  ";
