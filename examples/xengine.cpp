@@ -37,7 +37,6 @@ void execute_network(const string &model_name, string &images, string &labels,
             "data instead!"
          << endl;
   }
-  createOrRunSchedule(net, images, labels);
   runILPSolver(net, images, labels);
 }
 
