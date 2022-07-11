@@ -278,9 +278,13 @@ void Network::solveILP(const string mpsfile, const string logfile,
       {"90_percent", percent_of_budget(budget, 0.9)},
       {"85_percent", percent_of_budget(budget, 0.85)},
       {"75_percent", percent_of_budget(budget, 0.75)},
+      {"65_percent", percent_of_budget(budget, 0.65)},
       {"50_percent", percent_of_budget(budget, 0.5)},
       {"40_percent", percent_of_budget(budget, 0.4)},
+      {"30_percent", percent_of_budget(budget, 0.3)},
       {"25_percent", percent_of_budget(budget, 0.25)},
+      {"20_percent", percent_of_budget(budget, 0.2)},
+      {"15_percent", percent_of_budget(budget, 0.15)},
       {"10_percent", percent_of_budget(budget, 0.1)}};
   vector<string> run_order = {"auto", "75_percent", "50_percent", "25_percent",
                               "10_percent"};
