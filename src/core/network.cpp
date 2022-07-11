@@ -286,8 +286,8 @@ void Network::solveILP(const string mpsfile, const string logfile,
       {"20_percent", percent_of_budget(budget, 0.2)},
       {"15_percent", percent_of_budget(budget, 0.15)},
       {"10_percent", percent_of_budget(budget, 0.1)}};
-  vector<string> run_order = {"auto", "75_percent", "50_percent", "25_percent",
-                              "10_percent"};
+
+  vector<string> run_order = {"auto", "25_percent"};
 
   for (auto budget_name : run_order) {
     const string _name =
