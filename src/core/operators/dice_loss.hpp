@@ -235,7 +235,7 @@ public:
          {DNNL_ARG_DIFF_SRC, *_bwd_context->out_diff_mem}});
     auto time_exe = get_time();
     //_bwd_context->softmax_bwd->execute(s, args);
-    //s.wait();
+    // s.wait();
     if (measure_time) {
       timings[time_name]["exe"] = get_elapsed_ms(time_exe);
       timings[time_name]["total"] = get_elapsed_ms(begin);

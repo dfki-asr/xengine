@@ -304,6 +304,7 @@ void Network::solveILP(const string mpsfile, const string logfile,
          << endl
          << endl
          << endl;
+
     solveILP(_mpsfile, _logfile, _schedulefile, edges, dev_names,
              compute_costs_per_op, memory_per_op, copy_costs,
              budgets[budget_name], ram);
