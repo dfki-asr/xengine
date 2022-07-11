@@ -16,18 +16,23 @@ def readStringFile(txtfile, csvfile):
         "finished_run": "4"
     }
     with open(txtfile) as f:
-        csv_content = "x,cpu,gpu,color\n"
+        csv_content = ""
         rows = f.readlines()
         for rIdx, row in enumerate(rows):
             cols = row.split(',')
-            event = cols[2]
+            event = cols[-1]
             color = "0"
             for n, c in event_map.items():
                 if n in event:
                     color = c
-            csv_content += str(rIdx) + "," + str(toMiB(int(
-                cols[0]))) + "," + str(toMiB(int(
-                    cols[1]))) + "," + color + "\n"
+            number_devs = len(cols) - 1
+            dev_string = ",".join(
+                [str(toMiB(int(cols[d]))) for d in range(0, number_devs)])
+            if rIdx == 0:
+                dev_head = ",".join(
+                    ["dev" + str(d) for d in range(0, number_devs)])
+                csv_content += "x," + dev_head + ",color\n"
+            csv_content += str(rIdx) + "," + dev_string + "," + color + "\n"
         print(csv_content)
         file = open(csvfile, 'w')
         file.write(csv_content)
