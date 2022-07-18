@@ -4,7 +4,9 @@
 #include "onnx/checker.h"
 #include "onnx/onnx_pb.h"
 #include "onnx/shape_inference/implementation.h"
+#ifdef HAS_PNG
 #include <png.h>
+#endif
 
 using namespace std;
 using namespace onnx;
@@ -88,6 +90,7 @@ void normalizeImages(size_t const &batchSize, size_t const &channels,
 
 void writeImageAsPNG(vector<uint8_t> &imageBuffer, vector<uint32_t> &shape,
                      const string &imgpath, size_t sampleIdx) {
+#ifdef HAS_PNG
   int i = shape.size() - 1;
   int inChannel = shape.size() > 3 ? shape.at(1) : 1;
   int inHeight = shape.at(i - 1);
@@ -157,6 +160,9 @@ void writeImageAsPNG(vector<uint8_t> &imageBuffer, vector<uint32_t> &shape,
   if (fp != nullptr) {
     fclose(fp);
   }
+#else
+  cout << "WARNING: No PNG library found - cannot write output images." << endl;
+#endif
 }
 
 template <typename T>

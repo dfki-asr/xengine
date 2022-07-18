@@ -56,7 +56,7 @@ set(ONNX_LIBRARY onnx)
 set (WARN_FLAGS "-Wall -Wextra -Wnon-virtual-dtor -Wcast-align -Wunused -Woverloaded-virtual -Wpedantic")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DONNX_ML=1 -DONNX_NAMESPACE=onnx ${WARN_FLAGS}")
 
-find_package(PNG REQUIRED)
+find_package(PNG)
 
 add_subdirectory(examples)
 add_subdirectory(src)
