@@ -3,6 +3,22 @@
 Clone the repository:
 ```
 git clone git@github.com:ManuelaSchuler/xengine.git --recurse-submodules
+cd xengine
+```
+
+Set the paths to ONEDNN_HOME, GUROBI_HOME, CBC_HOME in prepare.sh
+- set ONEDNN_HOME to Install folder of local oneDNN-Installation
+- set GUROBI_HOME to [gurobi]/linux64
+- set CBC_HOME to [CBC]/dist
+and source the prepare.sh file:
+```
+source prepare.sh
+```
+
+Build the project. Select between "0=no Solver", "1=CBC-Only", "2=Gurobi-Only", "3=CBC+Gurobi".
+Default: 0=no Solver:
+```
+./build.sh [0|1|2|3]
 ```
 
 ## Prerequisites and dependencies:
