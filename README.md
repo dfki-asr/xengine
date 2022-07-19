@@ -30,13 +30,19 @@ In case you are on the Intel-DevCloud, level-zero and the oneAPI Toolkit are alr
 You can skip the next two steps and directly jump to the oneDNN-Installation.
 
 ### level zero
+  This is a dependency of the oneDNN Library.
+  Download level-zero from:
   ```
-  https://github.com/oneapi-src/level-zero/releases/tag/[version]
+  https://github.com/oneapi-src/level-zero/releases/
+  ```
+  This repository was tested with level-zero version v1.3-r1.3.0.
+  Go to the folder and build and install the level-zero library:
+  ```
   mkdir build && cd build && cmake .. && make -j && sudo make install
   ```
 
 ### oneAPI Base Toolkit
-  DPCPP/C++ Compiler, Intel Math Library
+  Download the oneAPI Toolkit from:
   ```
   https://software.intel.com/content/www/us/en/develop/tools/oneapi/base-toolkit.html
   ```
@@ -49,7 +55,8 @@ You can skip the next two steps and directly jump to the oneDNN-Installation.
 
 ### oneDNN Deep Neural Network Library - Version 2.5
   ```
-  https://github.com/oneapi-src/oneDNN.git -b rls-v2.5
+  git clone https://github.com/oneapi-src/oneDNN.git -b rls-v2.5
+  cd oneDNN
   mkdir build && cd build
   export CC=icx
   export CXX=icx
@@ -99,6 +106,38 @@ You can skip the next two steps and directly jump to the oneDNN-Installation.
   It is important to check that the correct OpenCL files ($ONEAPI_HOME/compiler/latest/include
   and $ONEAPI_HOME/compiler/latest/lib) are used!
   There might be conflicts with system OpenCL headers!
+  
+
+  Local changes to oneDNN (release 2.5) - Controlling the Number of CPU Compute Threads:
+  
+  Apply the following patch in order to control the number of CPU threads via the variable OPENCL_NUM_CORES.
+  This step is needed to reproduce results of the paper.
+
+  ```
+  diff --git a/src/common/dnnl_thread.cpp b/src/common/dnnl_thread.cpp
+index 991dafd8f..c193f219b 100644
+--- a/src/common/dnnl_thread.cpp
++++ b/src/common/dnnl_thread.cpp
+@@ -31,6 +31,13 @@ namespace impl {
+ 
+ static int adjust_num_threads(int nthr, dim_t work_amount) {
+     if (nthr == 0) nthr = dnnl_get_current_num_threads();
++    const char *num_cores = std::getenv("OPENCL_NUM_CORES");
++    if (num_cores != nullptr) {
++        int n_cores = std::stoi(num_cores);
++        if (n_cores < nthr) {
++            nthr = n_cores;
++        }
++    }
+ #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_OMP
+     return (work_amount == 1 || omp_in_parallel()) ? 1 : nthr;
+ #else
+   ```
+   
+   Finally, build and install oneDNN
+   ```
+   make -j 4 && make install
+   ```
 
 ### ILP Solver
   Two ILP Solvers are supported: COIN-OR Cbc solver and the Gurobi Optimization solver.
