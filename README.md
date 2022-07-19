@@ -16,12 +16,18 @@ source prepare.sh
 ```
 
 Build the project. Select between "0=no Solver", "1=CBC-Only", "2=Gurobi-Only", "3=CBC+Gurobi".
+
 Default: 0=no Solver:
 ```
 ./build.sh [0|1|2|3]
 ```
 
 ## Prerequisites and dependencies:
+
+### on the Intel DevCloud
+
+In case you are on the Intel-DevCloud, level-zero and the oneAPI Toolkit are already installed.
+You can skip the next two steps and directly jump to the oneDNN-Installation.
 
 ### level zero
   ```
@@ -41,9 +47,9 @@ Default: 0=no Solver:
   source $ONEAPI_HOME/setupvars.sh
   ```
 
-### oneDNN Deep Neural Network Library
+### oneDNN Deep Neural Network Library - Version 2.5
   ```
-  https://github.com/oneapi-src/oneDNN.git -b master
+  https://github.com/oneapi-src/oneDNN.git -b rls-v2.5
   mkdir build && cd build
   export CC=icx
   export CXX=icx
