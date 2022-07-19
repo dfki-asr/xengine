@@ -144,15 +144,19 @@ index 991dafd8f..c193f219b 100644
 
   Gurobi solver is a commercial solver by the Gurobi company, but the software can be downloaded for free and academic licences can be requested over their webpage.
 
-  Cbc is open source:
+  Cbc is an open source solver:
   ```
   mkdir CBC && cd CBC
   wget https://raw.githubusercontent.com/coin-or/coinbrew/master/coinbrew
   chmod u+x coinbrew
-  ./coinbrew fetch Cbc@master
+  ./coinbrew fetch Cbc@2.10.6
   ./coinbrew build Cbc
   ```
-  build files will be written to CBC/dist. CBC_ROOT_DIR should be set to the CBC/dist folder.
+  build files will be written to CBC/dist.
+
+  NOTE: Make sure that you use the default gcc or c++ compiler and NOT still the icx compiler (as for oneDNN).
+
+  CBC_ROOT_DIR should be set to the CBC/dist folder.
 
 ## Build the xengine project:
 
