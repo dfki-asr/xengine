@@ -3,9 +3,12 @@
 
 #include "ilp_solver_cbc.hpp"
 #include "ilp_solver.cpp"
+#include <fstream>
 #include <sstream>
 
 using namespace std::placeholders;
+
+static int dummyCallBack(CbcModel * /*model*/, int /*whereFrom*/) { return 0; }
 
 ILP_Solver_CBC::ILP_Solver_CBC(string model_name, string mpsfile,
                                string logfile, vector<pair<string, edge>> edges,
@@ -32,7 +35,8 @@ int ILP_Solver_CBC::solve() {
     int argc = 2;
     const char *argv[argc] = {"cbc", _mpsfile.c_str()};
     model.setDblParam(CbcModel::CbcMaximumSeconds, 1200.0);
-    CbcMain1(argc, argv, model, cbcData);
+
+    CbcMain1(argc, argv, model, dummyCallBack, cbcData);
 
     // Print solution
     if (!model.status()) {

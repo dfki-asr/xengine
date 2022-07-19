@@ -2,6 +2,7 @@
 #define XENGINE_ILP_SOLVER_CPP
 
 #include "ilp_solver.hpp"
+#include <fstream>
 
 string get_fixed_length_var_name(const int c, const int num_chars = 20) {
   string n(num_chars, ' ');
