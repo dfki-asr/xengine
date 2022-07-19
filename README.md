@@ -149,7 +149,7 @@ index 991dafd8f..c193f219b 100644
   mkdir CBC && cd CBC
   wget https://raw.githubusercontent.com/coin-or/coinbrew/master/coinbrew
   chmod u+x coinbrew
-  ./coinbrew fetch Cbc@2.10.6
+  ./coinbrew fetch Cbc@2.10.8
   ./coinbrew build Cbc
   ```
   build files will be written to CBC/dist.
@@ -184,12 +184,21 @@ cd build
 
 run lenet with batchsize 64 in inference mode:
 ```
-./examples/xengine lenet 64 0 output_folder
+./examples/xengine lenet 64 0 output_folder [device_file]
+```
+The "device_file" defines the available devices and in located in folder data/devices.
+- devices_cpu.txt for CPU-Only
+- devices_cpu_gpu.txt for CPU with one (Intel) GPU
+- devices_cpu_gpu_gpu.txt for CPU with two (Intel) GPUs
+
+run lenet with batchsize 64 in inference mode on the CPU:
+```
+./examples/xengine lenet 64 0 output_folder ../data/devices/devices_cpu.txt
 ```
 
 run lenet with batchsize 64 in training mode:
 ```
-./examples/xengine lenet 64 1 output_folder
+./examples/xengine lenet 64 1 output_folder [device_file]
 ```
 
 To run xengine with a higher batchsize:
@@ -203,8 +212,8 @@ Make sure to put the new model into the data/models folder und to keep the patte
 Then, you can run it with:
 ```
 cd ../../build
-./examples/xengine lenet 256 0 output_folder
-./examples/xengine lenet 256 1 output_folder
+./examples/xengine lenet 256 0 output_folder [device_file]
+./examples/xengine lenet 256 1 output_folder [device_file]
 ```
 
 ## Run the simple "cross engine reorder" (taken from oneDNN examples):
