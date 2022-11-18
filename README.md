@@ -1,4 +1,4 @@
-# xengine: Optimal Tensor Rematerialization for Neural Networks in Heterogeneous Environments
+# XEngine: Optimal Tensor Rematerialization for Neural Networks in Heterogeneous Environments
 
 XEngine is a Mixed Integer Quadratic Programming approach that schedules network operators onto heterogeneous devices in low memory environments by determining checkpoints and recomputations of tensors for Deep Learning Networks.
 
@@ -11,6 +11,22 @@ Our MIP is written to MPS-fileformat and can be read by common MIP-solvers such 
 ## This repository
 
 This repository in related to the Paper "XEngine: Optimal Tensor Rematerialization for Neural Networks in Heterogeneous Environments".
+
+If you use XEngine in your work, please cite us with:
+
+@article{10.1145/3568956,
+   author = {Schuler, Manuela and Membarth, Richard and Slusallek, Philipp},
+   title = {XEngine: Optimal Tensor Rematerialization for Neural Networks in Heterogeneous Environments},
+   year = {2022},
+   publisher = {Association for Computing Machinery},
+   address = {New York, NY, USA},
+   issn = {1544-3566},
+   url = {https://doi.org/10.1145/3568956},
+   doi = {10.1145/3568956},
+   note = {Just Accepted},
+   journal = {ACM Trans. Archit. Code Optim.},
+   month = {oct}
+}
 
 Clone the repository:
 ```
