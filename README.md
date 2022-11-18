@@ -14,6 +14,7 @@ This repository in related to the Paper "XEngine: Optimal Tensor Rematerializati
 
 If you use XEngine in your work, please cite us with:
 
+```
 @article{10.1145/3568956,
    author = {Schuler, Manuela and Membarth, Richard and Slusallek, Philipp},
    title = {XEngine: Optimal Tensor Rematerialization for Neural Networks in Heterogeneous Environments},
@@ -27,6 +28,7 @@ If you use XEngine in your work, please cite us with:
    journal = {ACM Trans. Archit. Code Optim.},
    month = {oct}
 }
+```
 
 Clone the repository:
 ```
