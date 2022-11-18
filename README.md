@@ -11,6 +11,7 @@ Our MIP is written to MPS-fileformat and can be read by common MIP-solvers such 
 ## This repository
 
 This repository in related to the Paper "XEngine: Optimal Tensor Rematerialization for Neural Networks in Heterogeneous Environments".
+Link to the Paper: https://dl.acm.org/doi/abs/10.1145/3568956
 
 If you use XEngine in your work, please cite us with:
 
