@@ -4,6 +4,8 @@ XEngine is a Mixed Integer Quadratic Programming approach that schedules network
 
 Memory efficiency is crucial in training deep learning networks on resource-restricted devices. During backpropagation, forward tensors are used to calculate gradients. Despite the option of keeping those dependencies in memory until they are reused in backpropagation, some forward tensors can be discarded and recomputed later from saved tensors, so-called checkpoints. This allows in particular for resource-constrained heterogeneous environments to make use of all available compute devices. Unfortunately, the definition of these checkpoints is a non-trivial problem and poses a challenge to the programmer, improper or excessive recomputations negate the benefit of checkpointing.
 
+![XEngine](XEngine.png)
+
 Deep Learning models can be read as .onnx format.
 We use Intel oneDNN primitives for the network operators.
 Our MIP is written to MPS-fileformat and can be read by common MIP-solvers such as Gurobi and CBC.
