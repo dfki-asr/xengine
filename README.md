@@ -17,17 +17,22 @@ If you use XEngine in your work, please cite us with:
 
 ```
 @article{10.1145/3568956,
-   author = {Schuler, Manuela and Membarth, Richard and Slusallek, Philipp},
-   title = {XEngine: Optimal Tensor Rematerialization for Neural Networks in Heterogeneous Environments},
-   year = {2022},
-   publisher = {Association for Computing Machinery},
-   address = {New York, NY, USA},
-   issn = {1544-3566},
-   url = {https://doi.org/10.1145/3568956},
-   doi = {10.1145/3568956},
-   note = {Just Accepted},
-   journal = {ACM Trans. Archit. Code Optim.},
-   month = {oct}
+  author          = {Schuler, Manuela and Membarth, Richard and Slusallek, Philipp},
+  title           = {{XEngine}: Optimal Tensor Rematerialization for Neural Networks in Heterogeneous Environments},
+  year            = {2022},
+  issue_date      = {March 2023},
+  publisher       = {Association for Computing Machinery},
+  address         = {New York, NY, USA},
+  volume          = {20},
+  number          = {1},
+  issn            = {1544-3566},
+  url             = {https://doi.org/10.1145/3568956},
+  doi             = {10.1145/3568956},
+  journal         = {ACM Transactions on Architecture and Code Optimization (TACO)},
+  month           = {dec},
+  articleno       = {17},
+  numpages        = {25},
+  keywords        = {Rematerialization, heterogeneous computing, memory management, neural networks, integer linear programming}
 }
 ```
 
